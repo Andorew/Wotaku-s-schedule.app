@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/css/calender.css" />
+    <title>Calender</title>
+  </head>
+  <body>
+    <h2 id="calendar-title"></h2>
+    <div id="calendar-container"></div>
+  </body>
+
+  <script>
+    const API_BASE_URL = "http://localhost:8000";
+    const ENDPOINT = "/register";
+    const READ_URL = `${API_BASE_URL}${ENDPOINT}`;
+
+    async function fetchBooks() {
+      const res = await fetch(READ_URL);
+      const books = await res.json();
+      return books;
+    }
+    const handleFormSubmit = async (event) => {
+      // デフォルトの送信をキャンセル
+      event.preventDefault();
+
+      const title = titleInput.value;
+
+      const data = {
+        title: titleInput.value,
+        auther: auther.value,
+        publisher: publisher.value,
+        imagepath: imagepath.value,
+        memo: memo.value,
+        publishday: publishday.value,
+        tagcolor: tagcolor.value.slice(1),
+      };
+    };
+
+    function generateOneMonth(year, month, books) {
+      const firstDay = new Date(year, month, 1);
+      const lastDay = new Date(year, month + 1, 0);
+
+      let startDay = firstDay.getDay(); // 0=日曜
+      startDay = startDay === 0 ? 6 : startDay - 1; // 月曜始まりに変換
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "month-block";
+
+      const title = document.createElement("h3");
+      title.textContent = `${year}年 ${month + 1}月`;
+      wrapper.appendChild(title);
+
+      const table = document.createElement("table");
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th>土</th><th>日</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+      const tbody = table.querySelector("tbody");
+
+      let date = 1;
+      let finished = false;
+
+      for (let i = 0; i < 6 && !finished; i++) {
+        const row = document.createElement("tr");
+
+        for (let j = 0; j < 7; j++) {
+          const cell = document.createElement("td");
+
+          if (i === 0 && j < startDay) {
+            cell.textContent = "";
+          } else if (date > lastDay.getDate()) {
+            cell.textContent = "";
+            finished = true;
+          } else {
+            cell.textContent = date;
+
+            // ★ 発売日と一致したらハイライト
+            const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(date).padStart(2, "0")}`;
+
+            const matched = books.filter((b) => b.publishday === dateStr);
+
+            if (matched.length > 0) {
+              // セルの中身をクリア
+              cell.innerHTML = "";
+
+              // 日付（大きめ）
+              const dateDiv = document.createElement("div");
+              dateDiv.textContent = date;
+              dateDiv.style.fontSize = "15px";
+              dateDiv.style.fontWeight = "bold";
+              cell.appendChild(dateDiv);
+
+              // タイトル一覧（複数対応）
+              // matched.forEach((b) => {
+              //   const btn = document.createElement("button");
+              //   btn.textContent = b.title;
+              //   btn.style.backgroundColor = "#" + b.tagcolor;
+              //   btn.style.color = "#000"; // 文字色（必要なら白にしてもOK）
+              //   btn.style.border = "none";
+              //   btn.style.padding = "6px 10px";
+              //   btn.style.marginTop = "4px";
+              //   btn.style.borderRadius = "4px";
+              //   btn.style.cursor = "pointer";
+
+              //   // クリック時の動作
+              //   btn.addEventListener("click", () => {
+              //     window.location.href = `/detail.html?bookid=${b.bookid}`;
+              //   });
+
+              //   cell.appendChild(btn);
+              // });
+
+              //このやり方でやるとLive Server / Vite / React dev server がクエリ付き、
+              // HTML を許可していない→ detail.html?bookid=14 を静的ファイルとして扱えず、→ /detail.html/bookid=14 に書き換えてしまう
+              //ほんとはhtmlのところが？にならないといけないけど、遷移後自動で/に置き換えられるためページがみつからないとエラーが出る。
+              // タイトル一覧（複数対応）
+              matched.forEach((b) => {
+                // ★ button ではなく a タグ（リンク）として生成する
+                const link = document.createElement("a");
+                link.textContent = b.title;
+
+                // ★ top2 と同じように、最初から href をセットしておく（これで100% ? で遷移します）
+                link.href = `/detail.html?bookid=${b.bookid}`;
+
+                // 見た目をボタン風にするためのスタイル（元のまま）
+                link.style.display = "block"; // リンクをブロック要素にして押しやすく
+                link.style.textDecoration = "none"; // 下線を消す
+                link.style.textAlign = "center";
+                link.style.backgroundColor = "#" + b.tagcolor;
+                link.style.color = "#000";
+                link.style.border = "none";
+                link.style.padding = "6px 10px";
+                link.style.marginTop = "4px";
+                link.style.borderRadius = "4px";
+                link.style.cursor = "pointer";
+
+                // ★ window.location.href のクリックイベントは不要になったので削除！
+
+                cell.appendChild(link);
+              });
+
+              console.log("搭載！");
+            } else {
+              // データがない日は普通に日付だけ
+              cell.textContent = date;
+            }
+
+            date++;
+          }
+
+          row.appendChild(cell);
+        }
+
+        tbody.appendChild(row);
+      }
+
+      wrapper.appendChild(table);
+      return wrapper;
+    }
+
+    async function generateYearCalendar() {
+      const books = await fetchBooks();
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth();
+
+      const container = document.getElementById("calendar-container");
+      container.innerHTML = "";
+
+      for (let i = 0; i < 12; i++) {
+        const y = year + Math.floor((month + i) / 12);
+        const m = (month + i) % 12;
+
+        const calendar = generateOneMonth(y, m, books);
+        container.appendChild(calendar);
+      }
+    }
+
+    window.onload = generateYearCalendar;
+  </script>
+</html>
