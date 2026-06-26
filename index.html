@@ -34,11 +34,11 @@
         statusDiv.innerText = "リクエスト送信中...";
         resultsDiv.innerHTML = "";
 
-        // 【超重要】ここをもう一度、管理画面からコピーして貼り付けてください
-        // 前後にスペースが入らないよう、`.trim()` で強制的に空白を消す処理を入れました
-        const appId = "83d10cad-7ffa-46a4-9ca5-f0a127bf5882".trim();
+        const appId = "83d10cad-7ffa-46a4-9ca5-f0a127bf5882";
 
-        const url = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&keyword=${encodeURIComponent(keyword)}&applicationId=${appId}`;
+        // 【大本命の修正】
+        // applicationId= だった場所を developerId= に変更しました！
+        const url = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&keyword=${encodeURIComponent(keyword)}&developerId=${appId}`;
 
         fetch(url)
           .then((response) => {
