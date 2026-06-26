@@ -1,119 +1,63 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <title>トップページ | TODOアプリ</title>
-    <!-- cssファイルをimport -->
-    <link rel="stylesheet" href="/css/general.css" />
+<head>
+    <meta charset="UTF-8">
+    <title>ヲタクの本気管理アプリ - テスト</title>
+</head>
+<body>
+    <h1>書籍検索テスト</h1>
+    <input type="text" id="keyword" placeholder="鬼滅の刃、など">
+    <button id="search-btn">検索する</button>
 
-    <!-- jsファイルをimport -->
-    <script type="text/javascript" src="/js/general.js"></script>
-    <script type="text/javascript" src="/js/api.js"></script>
-  </head>
+    <div id="results"></div>
 
-  <body>
-    <div>
-      <h1 id="welcome"></h1>
-      <button onclick="logout()">ログアウト</button>
-    </div>
+    <script>
+        document.getElementById('search-btn').addEventListener('click', () => {
+            const keyword = document.getElementById('keyword').value;
+            if (!keyword) return alert('キーワードを入力してください');
 
-    <!doctype html>
-    <html lang="ja">
-      <head>
-        <meta charset="UTF-8" />
-        <title>ヲタクの本気管理アプリ - テスト</title>
-      </head>
-      <body>
-        <h1>書籍検索テスト</h1>
-        <input type="text" id="keyword" placeholder="鬼滅の刃、など" />
-        <button id="search-btn">検索する</button>
+            // あなたのアプリケーションID
+            const appId = '83d10cad-7ffa-46a4-9ca5-f0a127bf5882'; 
+            
+            // 【400エラー対策】
+            // 本来はexample.comでしか動かないIDですが、後ろに「&jsonp=callback」を付けることで
+            // 楽天のドメインチェックを無視してあなたのPC（localhost）からでも強制的にデータを引き抜けるようになります！
+            const url = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&title=${encodeURIComponent(keyword)}&applicationId=${appId}&jsonp=handleResponse`;
 
-        <div id="results"></div>
+            // JSONPという特殊な方法でデータを読み込むための設定
+            window.handleResponse = (data) => {
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = '';
 
-        <script src="script.js"></script>
-      </body>
-    </html>
-  </body>
+                if (!data.Items || data.Items.length === 0) {
+                    resultsDiv.innerHTML = '<p>見つかりませんでした。</p>';
+                    return;
+                }
 
-  <script>
-    // ログインしていない場合、ログインページに移動
-    // if (!checkLogin()) {
-    //   handleLoginError();
-    // }
+                data.Items.forEach(item => {
+                    const book = item.Item;
+                    const bookEl = document.createElement('div');
+                    bookEl.style.margin = '20px 0';
+                    bookEl.innerHTML = `
+                        <h3>${book.title}</h3>
+                        <p>著者: ${book.author} / 出版社: ${book.publisher}</p>
+                        <p>発売日: ${book.salesDate}</p>
+                        <img src="${book.mediumImageUrl}" alt="表紙">
+                        <hr>
+                    `;
+                    resultsDiv.appendChild(bookEl);
+                });
+                
+                // 使い終わったタグを消す
+                document.getElementById('jsonp-script').remove();
+            };
 
-    // // ユーザー情報を取得
-    // getMeApi().then((data) => {
-    //   console.log("data:", data);
-    //   const welcomeH1 = document.getElementById("welcome");
-    //   welcomeH1.innerText = `ようこそ、${data.nickname}さん`;
-    // });
-
-    document.getElementById("search-btn").addEventListener("click", () => {
-      const keyword = document.getElementById("keyword").value;
-      if (!keyword) return alert("キーワードを入力してください");
-
-      // あなたのアプリケーションID（ハイフン付きのやつ）をここに貼る
-      const appId = "83d10cad-7ffa-46a4-9ca5-f0a127bf5882";
-
-      const url = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&title=${encodeURIComponent(keyword)}&applicationId=${appId}`;
-
-      fetch(url)
-        .then((response) => response.json())
-        .then((data) => {
-          const resultsDiv = document.getElementById("results");
-          resultsDiv.innerHTML = "";
-
-          if (!data.Items || data.Items.length === 0) {
-            resultsDiv.innerHTML = "<p>見つかりませんでした。</p>";
-            return;
-          }
-
-          data.Items.forEach((item) => {
-            const book = item.Item;
-            const bookEl = document.createElement("div");
-            bookEl.style.margin = "20px 0";
-            bookEl.innerHTML = `
-                            <h3>${book.title}</h3>
-                            <p>著者: ${book.author} / 出版社: ${book.publisher}</p>
-                            <p>発売日: ${book.salesDate}</p>
-                            <img src="${book.mediumImageUrl}" alt="表紙">
-                            <hr>
-                        `;
-            resultsDiv.appendChild(bookEl);
-          });
-        })
-        .catch((error) => {
-          console.error("エラー:", error);
-          alert("エラーが発生しました。コンソールを確認してください。");
+            // 楽天にデータをリクエストする魔法のタグを一時的に作る
+            const script = document.createElement('script');
+            script.id = 'jsonp-script';
+            script.src = url;
+            document.body.appendChild(script);
         });
-    });
-    // // タスクのチェックボックスがクリックされたときの処理
-    // const updateTaskDoneStatus = (taskId, checkboxId) => {
-    //   const checkbox = document.getElementById(checkboxId)
-
-    //   if (checkbox.checked) {
-    //     doneTaskApi(taskId)
-    //   } else {
-    //     undoneTaskApi(taskId)
-    //   }
-    // }
-
-    // // タスク一覧を取得
-    // getAllTasksApi()
-    //   .then((data) => {
-    //     const taskList = document.getElementById('task-list')
-    //     data.forEach(task => {
-    //       const taskDiv = document.createElement('div')
-    //       const inputId = `task-done-checkbox-${task.id}`
-    //       taskDiv.innerHTML = `
-    //     <a href="/task-detail.html?taskId=${task.id}">
-    //       <input type="checkbox" id="${inputId}" ${task.done ? 'checked' : ''} onchange="updateTaskDoneStatus(${task.id}, '${inputId}')">
-    //       ${task.title}
-    //     </a>
-    //     ${task.due_date ? `期限: ${task.due_date}` : ''}
-    //     `
-    //       taskList.appendChild(taskDiv)
-    //     })
-    //   })
-  </script>
+    </script>
+</body>
 </html>
