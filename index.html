@@ -2,14 +2,14 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>2026年最新仕様対応 - ヲタクの本気管理アプリ</title>
+    <title>書籍検索システム - 開通版</title>
 </head>
 <body>
-    <h1>書籍検索テスト</h1>
-    <input type="text" id="keyword" placeholder="鬼滅の刃、など">
+    <h1>書籍検索テスト (Google Books API版)</h1>
+    <input type="text" id="keyword" placeholder="鬼滅の刃、ONE PIECEなど">
     <button id="search-btn">検索する</button>
 
-    <div id="status" style="margin: 10px 0; padding: 10px; background: #eee; border-left: 5px solid #333;">
+    <div id="status" style="margin: 10px 0; padding: 10px; background: #eee; border-left: 5px solid #007acc;">
         ここに通信状態が表示されます。
     </div>
 
@@ -23,67 +23,50 @@
             
             if (!keyword) return alert('キーワードを入力してください');
 
-            statusDiv.innerText = '最新の楽天認証システムへ安全に接続中...';
+            statusDiv.innerText = '書籍データを検索中...';
             resultsDiv.innerHTML = '';
 
-            // あなたの持っている最新のIDとアクセスキー（上の段：2027年6月29日有効のもの）
-            const appId = 'cc9bd69b-720f-46a4-8820-b3e27c9b26c7'; 
-            const accessKey = 'MvWraoxmEPfz7byKhIa8lvvYgzkwwRLJq'; 
+            // Google Books API は登録不要・CORSエラーなしでブラウザから直接呼べます！
+            const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(keyword)}`;
 
-            // 【最新のURL仕様】
-            // URL末尾には一切IDやキーを載せません。純粋な検索クエリのみにします。
-            const url = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&keyword=${encodeURIComponent(keyword)}`;
-
-            // 【最新の認証ヘッダー仕様】
-            // noteの指摘通り、ブラウザ標準の fetch を使い、
-            // 正しいリクエストヘッダー（キー名）でIDとアクセスキーを送信することで、
-            // 楽天側が「正当なブラウザからのアクセス（Origin：github.io）」であると認め、認証をパスさせます。
-            fetch(url, {
-                method: 'GET',
-                mode: 'cors', // CORS通信であることを明示
-                headers: {
-                    'Authorization': `Bearer ${accessKey}`, // 2026年最新のトークン認証形式
-                    'X-Rakuten-Application-Id': appId
-                }
-            })
+            fetch(url)
             .then(response => {
                 if (!response.ok) {
-                    return response.json().then(errData => {
-                        throw new Error(`楽天からのエラー: ${errData.error_description || errData.error || response.statusText}`);
-                    });
+                    throw new Error('データの取得に失敗しました');
                 }
                 return response.json();
             })
             .then(data => {
-                if (!data.Items || data.Items.length === 0) {
+                if (!data.items || data.items.length === 0) {
                     statusDiv.innerText = '通信成功：本が見つかりませんでした。';
                     return;
                 }
 
-                statusDiv.innerText = `成功！ ${data.Items.length}件の本が見つかりました！`;
+                statusDiv.innerText = `成功！ ${data.items.length}件の本が見つかりました！`;
 
-                data.Items.forEach(item => {
-                    const book = item.Item;
+                data.items.forEach(item => {
+                    const volumeInfo = item.volumeInfo;
+                    
+                    // 画像がない場合のプレースホルダー
+                    const bookImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : 'https://via.placeholder.com/128x180?text=No+Image';
+                    const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : '不明';
+                    const publisher = volumeInfo.publisher || '不明';
+
                     const bookEl = document.createElement('div');
                     bookEl.style.margin = '20px 0';
                     bookEl.innerHTML = `
-                        <h3>${book.title}</h3>
-                        <p>著者: ${book.author} / 出版社: ${book.publisher}</p>
-                        <p>発売日: ${book.salesDate}</p>
-                        <img src="${book.mediumImageUrl}" alt="表紙">
-                        <hr>
+                        <h3>${volumeInfo.title}</h3>
+                        <p>著者: ${authors} / 出版社: ${publisher}</p>
+                        <p>発売日: ${volumeInfo.publishedDate || '不明'}</p>
+                        <img src="${bookImage}" alt="表紙" style="box-shadow: 2px 2px 5px rgba(0,0,0,0.2); max-width: 130px;">
+                        <hr style="border: 0; border-top: 1px solid #ccc; margin-top: 15px;">
                     `;
                     resultsDiv.appendChild(bookEl);
                 });
             })
             .catch(error => {
                 console.error('エラー詳細:', error);
-                
-                // もし認証の形式（Authorizationキー）が違った場合の、もう一つの最新ヘッダーパターンでの案内
-                statusDiv.innerHTML = `
-                    <span style="color:red; font-weight:bold;">❌ エラー: ${error.message}</span><br><br>
-                    <small style="color:#666;">※もしこのエラーが「401 Unauthorized」などの認証エラーである場合、楽天へ送るヘッダーの名前を微修正する必要があります。その際はこの画面の文字を教えてください！</small>
-                `;
+                statusDiv.innerHTML = `<span style="color:red; font-weight:bold;">❌ エラー: ${error.message}</span>`;
             });
         });
     </script>
