@@ -2,10 +2,10 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>ヲタクの本気管理アプリ - 検索成功版</title>
+    <title>原因特定版 - ヲタクの本気管理アプリ</title>
 </head>
 <body>
-    <h1>書籍検索テスト</h1>
+    <h1>書籍検索テスト（最終原因調査）</h1>
     <input type="text" id="keyword" placeholder="鬼滅の刃、など">
     <button id="search-btn">検索する</button>
 
@@ -16,14 +16,21 @@
     <div id="results"></div>
 
     <script>
-        // 楽天からデータが返ってきたときに自動で実行される関数（マニュアルのルール）
+        // 楽天からデータが返ってきたときに実行される関数
         window.rakutenCallback = (data) => {
             const statusDiv = document.getElementById('status');
-            const resultsDiv = document.getElementById('results');
-
-            // 楽天側でエラーが起きた場合
-            if (data.error) {
-                statusDiv.innerHTML = `<span style="color:red; font-weight:bold;">❌ 楽天エラー: ${data.error_description || data.error}</span>`;
+            
+            // 【修正ポイント】楽天が返すあらゆるエラーのパターンを網羅して画面に出します
+            if (data.error || data.status === 'NOT_FOUND' || data.error_description) {
+                const errorMsg = data.error_description || data.error || '不明なエラー';
+                const errorReason = data.message || '';
+                
+                statusDiv.innerHTML = `
+                    <span style="color:red; font-weight:bold;">❌ 楽天が通信を拒否した本当の理由：</span><br>
+                    <strong>エラー名:</strong> ${errorMsg}<br>
+                    <strong>詳しい理由:</strong> ${errorReason}<br><br>
+                    <small style="color:#666;">※これをもとに一発で修正できます！</small>
+                `;
                 return;
             }
 
@@ -34,7 +41,8 @@
 
             statusDiv.innerText = `成功！ ${data.Items.length}件の本が見つかりました！`;
 
-            // 画面に本の情報を並べる
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
             data.Items.forEach(item => {
                 const book = item.Item;
                 const bookEl = document.createElement('div');
@@ -49,12 +57,10 @@
                 resultsDiv.appendChild(bookEl);
             });
 
-            // 使い終わった通信用のタグをきれいに消す
             const oldScript = document.getElementById('rakuten-jsonp');
             if (oldScript) oldScript.remove();
         };
 
-        // ボタンを押した時の処理
         document.getElementById('search-btn').addEventListener('click', () => {
             const keyword = document.getElementById('keyword').value;
             const statusDiv = document.getElementById('status');
@@ -62,22 +68,15 @@
             
             if (!keyword) return alert('キーワードを入力してください');
 
-            statusDiv.innerText = '楽天APIにデータをリクエスト中...';
+            statusDiv.innerText = '楽天のサーバーに直接問い合せ中...';
             resultsDiv.innerHTML = '';
 
-            // あなたの正しいアプリケーションID（ハイフン付きのままでOK）
             const appId = '83d10cad-7ffa-46a4-9ca5-f0a127bf5882'; 
-            
-            // 【マニュアル指定の最重要ポイント】
-            // ① applicationId= に戻します（ハイフン付きでもこれで合っています）
-            // ② 末尾に「&callback=rakutenCallback」を合体させます（CORS回避の魔法です）
             const url = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&keyword=${encodeURIComponent(keyword)}&applicationId=${appId}&callback=rakutenCallback`;
 
-            // 古い通信用タグが残っていれば先に消す
             const oldScript = document.getElementById('rakuten-jsonp');
             if (oldScript) oldScript.remove();
 
-            // <script>タグを一時的に作って、楽天に安全にデータを貰いにいく（CORSをすり抜ける唯一の技）
             const script = document.createElement('script');
             script.id = 'rakuten-jsonp';
             script.src = url;
