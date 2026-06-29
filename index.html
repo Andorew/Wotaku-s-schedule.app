@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>新仕様対応版 - ヲタクの本気管理アプリ</title>
+    <title>ヲタクの本気管理アプリ - 検索成功版</title>
 </head>
 <body>
     <h1>書籍検索テスト</h1>
@@ -16,6 +16,45 @@
     <div id="results"></div>
 
     <script>
+        // 楽天からデータが返ってきたときに自動で実行される関数（マニュアルのルール）
+        window.rakutenCallback = (data) => {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+
+            // 楽天側でエラーが起きた場合
+            if (data.error) {
+                statusDiv.innerHTML = `<span style="color:red; font-weight:bold;">❌ 楽天エラー: ${data.error_description || data.error}</span>`;
+                return;
+            }
+
+            if (!data.Items || data.Items.length === 0) {
+                statusDiv.innerText = '通信成功：本が見つかりませんでした。';
+                return;
+            }
+
+            statusDiv.innerText = `成功！ ${data.Items.length}件の本が見つかりました！`;
+
+            // 画面に本の情報を並べる
+            data.Items.forEach(item => {
+                const book = item.Item;
+                const bookEl = document.createElement('div');
+                bookEl.style.margin = '20px 0';
+                bookEl.innerHTML = `
+                    <h3>${book.title}</h3>
+                    <p>著者: ${book.author} / 出版社: ${book.publisher}</p>
+                    <p>発売日: ${book.salesDate}</p>
+                    <img src="${book.mediumImageUrl}" alt="表紙">
+                    <hr>
+                `;
+                resultsDiv.appendChild(bookEl);
+            });
+
+            // 使い終わった通信用のタグをきれいに消す
+            const oldScript = document.getElementById('rakuten-jsonp');
+            if (oldScript) oldScript.remove();
+        };
+
+        // ボタンを押した時の処理
         document.getElementById('search-btn').addEventListener('click', () => {
             const keyword = document.getElementById('keyword').value;
             const statusDiv = document.getElementById('status');
@@ -23,59 +62,26 @@
             
             if (!keyword) return alert('キーワードを入力してください');
 
-            statusDiv.innerText = 'リクエスト送信中...';
+            statusDiv.innerText = '楽天APIにデータをリクエスト中...';
             resultsDiv.innerHTML = '';
 
-            // あなたの「アプリケーションID（デベロッパーID）」
+            // あなたの正しいアプリケーションID（ハイフン付きのままでOK）
             const appId = '83d10cad-7ffa-46a4-9ca5-f0a127bf5882'; 
             
-            // 【新仕様の修正】
-            // URLからはID（applicationIdやdeveloperId）を完全に削除します。
-            const url = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&keyword=${encodeURIComponent(keyword)}`;
+            // 【マニュアル指定の最重要ポイント】
+            // ① applicationId= に戻します（ハイフン付きでもこれで合っています）
+            // ② 末尾に「&callback=rakutenCallback」を合体させます（CORS回避の魔法です）
+            const url = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&keyword=${encodeURIComponent(keyword)}&applicationId=${appId}&callback=rakutenCallback`;
 
-            // 【これが原因だった「辞書のキー」です】
-            // 楽天の新しいシステムは、この「X-Rakuten-Developer-Id」というキー名で
-            // IDを通信のヘッダー（裏側）に含めて送るルールになっています。
-            fetch(url, {
-                method: 'GET',
-                headers: {
-                    'X-Rakuten-Developer-Id': appId
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(errData => {
-                        throw new Error(`楽天からのエラー: ${errData.error_description || errData.error || response.statusText}`);
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (!data.Items || data.Items.length === 0) {
-                    statusDiv.innerText = '通信成功：本が見つかりませんでした。';
-                    return;
-                }
+            // 古い通信用タグが残っていれば先に消す
+            const oldScript = document.getElementById('rakuten-jsonp');
+            if (oldScript) oldScript.remove();
 
-                statusDiv.innerText = `成功！ ${data.Items.length}件見つかりました！`;
-
-                data.Items.forEach(item => {
-                    const book = item.Item;
-                    const bookEl = document.createElement('div');
-                    bookEl.style.margin = '20px 0';
-                    bookEl.innerHTML = `
-                        <h3>${book.title}</h3>
-                        <p>著者: ${book.author} / 出版社: ${book.publisher}</p>
-                        <p>発売日: ${book.salesDate}</p>
-                        <img src="${book.mediumImageUrl}" alt="表紙">
-                        <hr>
-                    `;
-                    resultsDiv.appendChild(bookEl);
-                });
-            })
-            .catch(error => {
-                console.error('エラー詳細:', error);
-                statusDiv.innerHTML = `<span style="color:red; font-weight:bold;">❌ 停止: ${error.message}</span>`;
-            });
+            // <script>タグを一時的に作って、楽天に安全にデータを貰いにいく（CORSをすり抜ける唯一の技）
+            const script = document.createElement('script');
+            script.id = 'rakuten-jsonp';
+            script.src = url;
+            document.body.appendChild(script);
         });
     </script>
 </body>
