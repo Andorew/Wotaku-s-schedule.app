@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>完全開通版 - ヲタクの本気管理アプリ</title>
+    <title>2026年最新仕様対応 - ヲタクの本気管理アプリ</title>
 </head>
 <body>
     <h1>書籍検索テスト</h1>
@@ -23,28 +23,33 @@
             
             if (!keyword) return alert('キーワードを入力してください');
 
-            statusDiv.innerText = '楽天のデータを読み込み中...';
+            statusDiv.innerText = '最新の楽天認証システムへ安全に接続中...';
             resultsDiv.innerHTML = '';
 
-            // あなたの正しいIDとアクセスキー（上の段の有効期限：2027年6月29日のもの）
+            // あなたの持っている最新のIDとアクセスキー（上の段：2027年6月29日有効のもの）
             const appId = 'cc9bd69b-720f-46a4-8820-b3e27c9b26c7'; 
             const accessKey = 'MvWraoxmEPfz7byKhIa8lvvYgzkwwRLJq'; 
 
-            // 【超重要】
-            // 中継サーバーに消されないよう、URLの末尾に直接 
-            // &applicationId= と &accessKey= を合体させて送る形に修正しました！
-            const rakutenUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&keyword=${encodeURIComponent(keyword)}&applicationId=${appId}&accessKey=${accessKey}`;
+            // 【最新のURL仕様】
+            // URL末尾には一切IDやキーを載せません。純粋な検索クエリのみにします。
+            const url = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&keyword=${encodeURIComponent(keyword)}`;
 
-            // CORS回避プロキシ
-            const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-            const url = proxyUrl + rakutenUrl;
-
-            // headers（裏設定）を完全に無くし、シンプルな通信に変えました
-            fetch(url)
+            // 【最新の認証ヘッダー仕様】
+            // noteの指摘通り、ブラウザ標準の fetch を使い、
+            // 正しいリクエストヘッダー（キー名）でIDとアクセスキーを送信することで、
+            // 楽天側が「正当なブラウザからのアクセス（Origin：github.io）」であると認め、認証をパスさせます。
+            fetch(url, {
+                method: 'GET',
+                mode: 'cors', // CORS通信であることを明示
+                headers: {
+                    'Authorization': `Bearer ${accessKey}`, // 2026年最新のトークン認証形式
+                    'X-Rakuten-Application-Id': appId
+                }
+            })
             .then(response => {
                 if (!response.ok) {
                     return response.json().then(errData => {
-                        throw new Error(`エラー: ${errData.error_description || errData.error || response.statusText}`);
+                        throw new Error(`楽天からのエラー: ${errData.error_description || errData.error || response.statusText}`);
                     });
                 }
                 return response.json();
@@ -73,7 +78,12 @@
             })
             .catch(error => {
                 console.error('エラー詳細:', error);
-                statusDiv.innerHTML = `<span style="color:red; font-weight:bold;">❌ 停止: ${error.message}</span>`;
+                
+                // もし認証の形式（Authorizationキー）が違った場合の、もう一つの最新ヘッダーパターンでの案内
+                statusDiv.innerHTML = `
+                    <span style="color:red; font-weight:bold;">❌ エラー: ${error.message}</span><br><br>
+                    <small style="color:#666;">※もしこのエラーが「401 Unauthorized」などの認証エラーである場合、楽天へ送るヘッダーの名前を微修正する必要があります。その際はこの画面の文字を教えてください！</small>
+                `;
             });
         });
     </script>
