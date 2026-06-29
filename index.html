@@ -23,28 +23,24 @@
             
             if (!keyword) return alert('キーワードを入力してください');
 
-            statusDiv.innerText = 'CORS回避サーバーを経由して、楽天からデータを取得中...';
+            statusDiv.innerText = '楽天のデータを読み込み中...';
             resultsDiv.innerHTML = '';
 
-            // あなたの正しいIDとアクセスキー
+            // あなたの正しいIDとアクセスキー（上の段の有効期限：2027年6月29日のもの）
             const appId = 'cc9bd69b-720f-46a4-8820-b3e27c9b26c7'; 
             const accessKey = 'MvWraoxmEPfz7byKhIa8lvvYgzkwwRLJq'; 
 
-            // 本物の楽天APIのURL
-            const rakutenUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&keyword=${encodeURIComponent(keyword)}`;
+            // 【超重要】
+            // 中継サーバーに消されないよう、URLの末尾に直接 
+            // &applicationId= と &accessKey= を合体させて送る形に修正しました！
+            const rakutenUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&keyword=${encodeURIComponent(keyword)}&applicationId=${appId}&accessKey=${accessKey}`;
 
-            // 【CORSエラーを100%回避する魔法のURL】
-            // 楽天がブラウザからの直接アクセスを拒否するため、この無料の中継サーバーを通します。
+            // CORS回避プロキシ
             const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
             const url = proxyUrl + rakutenUrl;
 
-            fetch(url, {
-                method: 'GET',
-                headers: {
-                    'X-Rakuten-Application-Id': appId,
-                    'X-Rakuten-Access-Key': accessKey
-                }
-            })
+            // headers（裏設定）を完全に無くし、シンプルな通信に変えました
+            fetch(url)
             .then(response => {
                 if (!response.ok) {
                     return response.json().then(errData => {
@@ -77,13 +73,7 @@
             })
             .catch(error => {
                 console.error('エラー詳細:', error);
-                
-                // 初回だけ中継サーバーの利用許可ボタンを押す必要がある場合の親切な案内
-                statusDiv.innerHTML = `
-                    <span style="color:red; font-weight:bold;">❌ 停止: ${error.message}</span><br><br>
-                    <p>※もしエラーが出た場合は、一度だけ下のボタンを押して、開いた先のページで<b>【Request temporary access to demo server】</b>という自由化ボタンを押してから、もう一度この画面で検索してください。</p>
-                    <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank" style="display:inline-block; padding:10px; background:#333; color:#fff; text-decoration:none; font-weight:bold; border-radius:5px;">ここを押してアクセスを許可する（初回のみ）</a>
-                `;
+                statusDiv.innerHTML = `<span style="color:red; font-weight:bold;">❌ 停止: ${error.message}</span>`;
             });
         });
     </script>
