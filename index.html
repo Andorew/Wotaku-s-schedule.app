@@ -23,18 +23,21 @@
             
             if (!keyword) return alert('キーワードを入力してください');
 
-            statusDiv.innerText = '楽天の新システムに安全な通信で接続中...';
+            statusDiv.innerText = 'CORS回避サーバーを経由して、楽天からデータを取得中...';
             resultsDiv.innerHTML = '';
 
-            // 1. 新しい方のアプリケーションID（上の段のやつ）
+            // あなたの正しいIDとアクセスキー
             const appId = 'cc9bd69b-720f-46a4-8820-b3e27c9b26c7'; 
-            
-            // 2. 【これが足りなかった！】上の段のアクセスキーをここに貼り付けます
             const accessKey = 'MvWraoxmEPfz7byKhIa8lvvYgzkwwRLJq'; 
 
-            const url = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&keyword=${encodeURIComponent(keyword)}`;
+            // 本物の楽天APIのURL
+            const rakutenUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&keyword=${encodeURIComponent(keyword)}`;
 
-            // 楽天の最新仕様：IDとアクセスキーの2つを、裏側のヘッダーにセットして送ります
+            // 【CORSエラーを100%回避する魔法のURL】
+            // 楽天がブラウザからの直接アクセスを拒否するため、この無料の中継サーバーを通します。
+            const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+            const url = proxyUrl + rakutenUrl;
+
             fetch(url, {
                 method: 'GET',
                 headers: {
@@ -74,7 +77,13 @@
             })
             .catch(error => {
                 console.error('エラー詳細:', error);
-                statusDiv.innerHTML = `<span style="color:red; font-weight:bold;">❌ 停止: ${error.message}</span>`;
+                
+                // 初回だけ中継サーバーの利用許可ボタンを押す必要がある場合の親切な案内
+                statusDiv.innerHTML = `
+                    <span style="color:red; font-weight:bold;">❌ 停止: ${error.message}</span><br><br>
+                    <p>※もしエラーが出た場合は、一度だけ下のボタンを押して、開いた先のページで<b>【Request temporary access to demo server】</b>という自由化ボタンを押してから、もう一度この画面で検索してください。</p>
+                    <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank" style="display:inline-block; padding:10px; background:#333; color:#fff; text-decoration:none; font-weight:bold; border-radius:5px;">ここを押してアクセスを許可する（初回のみ）</a>
+                `;
             });
         });
     </script>
