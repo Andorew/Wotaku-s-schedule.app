@@ -2,10 +2,10 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>書籍検索システム - 開通版</title>
+    <title>書籍検索システム - 完全開通版</title>
 </head>
 <body>
-    <h1>書籍検索テスト (Google Books API版)</h1>
+    <h1>書籍検索テスト (Google Books 確定版)</h1>
     <input type="text" id="keyword" placeholder="鬼滅の刃、ONE PIECEなど">
     <button id="search-btn">検索する</button>
 
@@ -23,16 +23,23 @@
             
             if (!keyword) return alert('キーワードを入力してください');
 
-            statusDiv.innerText = '書籍データを検索中...';
+            statusDiv.innerText = 'Google Books API にキーを送信して検索中...';
             resultsDiv.innerHTML = '';
 
-            // Google Books API は登録不要・CORSエラーなしでブラウザから直接呼べます！
-            const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(keyword)}`;
+            // ==========================================
+            // 👇 ここに、先ほど取得したAPIキーを貼り付けます！
+            // ==========================================
+            const apiKey = 'ここにあなたのAPIキーを貼り付け'; 
+
+            // 2026年最新マニュアル仕様：URLの末尾に「&key=」の形で安全に認証を通します
+            const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(keyword)}&key=${apiKey}`;
 
             fetch(url)
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('データの取得に失敗しました');
+                    return response.json().then(errData => {
+                        throw new Error(`Googleエラー: ${errData.error.message || response.statusText}`);
+                    });
                 }
                 return response.json();
             })
@@ -47,8 +54,12 @@
                 data.items.forEach(item => {
                     const volumeInfo = item.volumeInfo;
                     
-                    // 画像がない場合のプレースホルダー
-                    const bookImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : 'https://via.placeholder.com/128x180?text=No+Image';
+                    // 画像のURL（httpになっていたら、最新のブラウザ仕様に合わせてhttpsに自動変換）
+                    let bookImage = 'https://via.placeholder.com/128x180?text=No+Image';
+                    if (volumeInfo.imageLinks && volumeInfo.imageLinks.thumbnail) {
+                        bookImage = volumeInfo.imageLinks.thumbnail.replace('http://', 'https://');
+                    }
+                    
                     const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : '不明';
                     const publisher = volumeInfo.publisher || '不明';
 
