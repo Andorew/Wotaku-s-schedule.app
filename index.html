@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>書籍検索システム - 漫画完全厳選版</title>
+    <title>書籍検索システム - 完全開通版</title>
 </head>
 <body>
     <h1>書籍検索テスト (Google Books 確定版)</h1>
@@ -23,17 +23,16 @@
             
             if (!keyword) return alert('キーワードを入力してください');
 
-            statusDiv.innerText = '日本のコミック書籍を厳選中...';
+            statusDiv.innerText = 'Google Books API にキーを送信して検索中...';
             resultsDiv.innerHTML = '';
 
             // ==========================================
-            // ⚠️ 【重要】ここにあなたのGoogle APIキー（AIzaSy...）を貼り付けてください！
+            // ⚠️ 【重要】この下の 'AIzaSy...' をあなたの本当のキーだけに書き換えてください！
+            // 前後のシングルクォーテーション（' '）は消さないように注意してください。
             // ==========================================
             const apiKey = 'AIzaSyAs_2Ny296ofJ5GHFfjuApgHtgo7fV0wYw'; 
 
-            // 💡 URLはエラーの原因になる余計なコマンドを一切排除し、極限までシンプルにしました！
-            // これで「400 Bad Request (< エラー)」は100%起きなくなります。
-            const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(keyword)}&langRestrict=ja&maxResults=40&key=${apiKey}`;
+            const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(keyword)}&key=${apiKey}`;
 
             fetch(url)
             .then(response => {
@@ -50,43 +49,23 @@
                     return;
                 }
 
-                let displayCount = 0;
+                statusDiv.innerText = `成功！ ${data.items.length}件の本が見つかりました！`;
 
                 data.items.forEach(item => {
                     const volumeInfo = item.volumeInfo;
-                    const title = volumeInfo.title || "";
-                    const description = volumeInfo.description || "";
-                    const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : '不明';
-                    const publisher = volumeInfo.publisher || '不明';
-
-                    // 💡 【超強力・プログラム側でのマンガ選別フィルター】
-                    // Googleのクエリに頼らず、届いたデータのタイトルや説明文に「コミック」「漫画」「少年」「単行本」「巻」
-                    // などの日本のマンガ特有のキーワードが【どれか1つでも】入っているものだけを画面に出します。
-                    // これで、さっき混ざっていた「海外の一般小説（）」や歴史書を100%完全に叩き落とします！
-                    const mangaKeywords = ["コミック", "漫画", "マンガ", "少年", "青年", "少女", "単行本", "コミックス", "巻", "著", "画"];
-                    const isManga = mangaKeywords.some(word => title.includes(word) || description.includes(word));
                     
-                    if (!isManga) {
-                        return; // マンガっぽくない本（海外の一般小説など）はここでゴミ箱にポイしてスキップ！
-                    }
-
-                    // 雑誌やマガジンなどの、単行本ではないノイズを排除
-                    if (title.includes("雑誌") || title.includes("マガジン") || title.includes("ジャンプ")) {
-                        return; 
-                    }
-
-                    // 画像の安全な差し替え
-                    let bookImage = 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=130&q=80'; 
+                    let bookImage = 'https://via.placeholder.com/128x180?text=No+Image';
                     if (volumeInfo.imageLinks && volumeInfo.imageLinks.thumbnail) {
                         bookImage = volumeInfo.imageLinks.thumbnail.replace('http://', 'https://');
                     }
-
-                    displayCount++;
+                    
+                    const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : '不明';
+                    const publisher = volumeInfo.publisher || '不明';
 
                     const bookEl = document.createElement('div');
                     bookEl.style.margin = '20px 0';
                     bookEl.innerHTML = `
-                        <h3>${title}</h3>
+                        <h3>${volumeInfo.title}</h3>
                         <p>著者: ${authors} / 出版社: ${publisher}</p>
                         <p>発売日: ${volumeInfo.publishedDate || '不明'}</p>
                         <img src="${bookImage}" alt="表紙" style="box-shadow: 2px 2px 5px rgba(0,0,0,0.2); max-width: 130px;">
@@ -94,12 +73,6 @@
                     `;
                     resultsDiv.appendChild(bookEl);
                 });
-
-                if (displayCount === 0) {
-                    statusDiv.innerText = '通信は成功しましたが、日本のマンガ単行本に厳選した結果、表示できる本がありませんでした。キーワードを変えてみてください。';
-                } else {
-                    statusDiv.innerText = `成功！海外の小説やノイズを完全に除去し、日本のコミックスを ${displayCount} 件表示しました！`;
-                }
             })
             .catch(error => {
                 console.error('エラー詳細:', error);
