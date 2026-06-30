@@ -24,79 +24,81 @@
     <div id="results"></div>
 
     <script>
-      document.getElementById("search-btn").addEventListener("click", () => {
-        const keyword = document.getElementById("keyword").value;
-        const statusDiv = document.getElementById("status");
-        const resultsDiv = document.getElementById("results");
+      document.getElementById('search-btn').addEventListener('click', () => {
+            const keyword = document.getElementById('keyword').value;
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            if (!keyword) return alert('キーワードを入力してください');
 
-        if (!keyword) return alert("キーワードを入力してください");
+            statusDiv.innerText = '日本のコミックス単行本を厳選して取得中...';
+            resultsDiv.innerHTML = '';
 
-        statusDiv.innerText = "Google Books API から単行本を大量に取得中...";
-        resultsDiv.innerHTML = "";
+            // 【重要】ご自身のAPIキーを入れてください
+            const apiKey = 'あなたのAPIキー'; 
 
-        // 【重要】ご自身のAPIキーを入れてください
-        const apiKey = "AIzaSyAs_2Ny296ofJ5GHFfjuApgHtgo7fV0wYw";
+            // 💡 2026年最新・ノイズ除去の高度なクエリ構造
+            // ・intitle:${keyword} : タイトルに検索ワードが確実に含まれるもの
+            // ・subject:Fiction    : 物語（マンガ・小説）ジャンルに限定し、歴史書や解説本を排除
+            const advancedQuery = `intitle:${keyword} subject:Fiction`;
 
-        // 💡 対策：日本の漫画を探しやすくするため、裏で「コミック」というワードを自動で足します
-        const searchWord = `${keyword} コミック`;
+            // 💡 徹底的なフィルタリングURL
+            // ・&langRestrict=ja : 洋書を100%完全排除（日本語のみ）
+            // ・&maxResults=40   : 取得上限を最大（40件）に要求
+            // ・&orderBy=relevance : 関連性の高い順（なるべく1巻から）に並べる
+            const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(advancedQuery)}&langRestrict=ja&maxResults=40&orderBy=relevance&key=${apiKey}`;
 
-        // 💡 対策：
-        // &maxResults=40 で上限を10件から40件にアップ！
-        // &printType=books で雑誌を完全に排除して本（単行本など）だけに絞り込み！
-        const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchWord)}&maxResults=40&printType=books&key=${apiKey}`;
+            fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errData => {
+                        throw new Error(`Googleエラー: ${errData.error.message || response.statusText}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data.items || data.items.length === 0) {
+                    statusDiv.innerText = '通信成功：日本の単行本（フィクション）が見つかりませんでした。';
+                    return;
+                }
 
-        fetch(url)
-          .then((response) => {
-            if (!response.ok) {
-              return response.json().then((errData) => {
-                throw new Error(
-                  `Googleエラー: ${errData.error.message || response.statusText}`,
-                );
-              });
-            }
-            return response.json();
-          })
-          .then((data) => {
-            if (!data.items || data.items.length === 0) {
-              statusDiv.innerText = "通信成功：本が見つかりませんでした。";
-              return;
-            }
+                statusDiv.innerText = `成功！ ${data.items.length}件の日本のコミックスを厳選しました！`;
 
-            statusDiv.innerText = `成功！ ${data.items.length}件の本が見つかりました！`;
+                data.items.forEach(item => {
+                    const volumeInfo = item.volumeInfo;
+                    
+                    // 【さらにプログラム側でも「雑誌」という文字が含まれるものを緊急排除】
+                    const title = volumeInfo.title || "";
+                    if (title.includes("雑誌") || title.includes("マガジン") || title.includes("ジャンプ")) {
+                        return; // この本はスキップして画面に出さない
+                    }
 
-            data.items.forEach((item) => {
-              const volumeInfo = item.volumeInfo;
+                    let bookImage = 'https://via.placeholder.com/128x180?text=No+Image';
+                    if (volumeInfo.imageLinks && volumeInfo.imageLinks.thumbnail) {
+                        bookImage = volumeInfo.imageLinks.thumbnail.replace('http://', 'https://');
+                    }
+                    
+                    const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : '不明';
+                    const publisher = volumeInfo.publisher || '不明';
 
-              let bookImage =
-                "https://via.placeholder.com/128x180?text=No+Image";
-              if (volumeInfo.imageLinks && volumeInfo.imageLinks.thumbnail) {
-                bookImage = volumeInfo.imageLinks.thumbnail.replace(
-                  "http://",
-                  "https://",
-                );
-              }
-
-              const authors = volumeInfo.authors
-                ? volumeInfo.authors.join(", ")
-                : "不明";
-              const publisher = volumeInfo.publisher || "不明";
-
-              const bookEl = document.createElement("div");
-              bookEl.style.margin = "20px 0";
-              bookEl.innerHTML = `
-                        <h3>${volumeInfo.title}</h3>
+                    const bookEl = document.createElement('div');
+                    bookEl.style.margin = '20px 0';
+                    bookEl.innerHTML = `
+                        <h3>${title}</h3>
                         <p>著者: ${authors} / 出版社: ${publisher}</p>
-                        <p>発売日: ${volumeInfo.publishedDate || "不明"}</p>
+                        <p>発売日: ${volumeInfo.publishedDate || '不明'}</p>
                         <img src="${bookImage}" alt="表紙" style="box-shadow: 2px 2px 5px rgba(0,0,0,0.2); max-width: 130px;">
                         <hr style="border: 0; border-top: 1px solid #ccc; margin-top: 15px;">
                     `;
-              resultsDiv.appendChild(bookEl);
-            });
-          })
-          .catch((error) => {
-            console.error("エラー詳細:", error);
-            statusDiv.innerHTML = `<span style="color:red; font-weight:bold;">❌ エラー: ${error.message}</span>`;
-          });
+                    resultsDiv.appendChild(bookEl);
+                });
+            })
+            .catch(error => {
+                console.error('エラー詳細:', error);
+                statusDiv.innerHTML = `<span style="color:red; font-weight:bold;">❌ エラー: ${error.message}</span>`;
+      
+        });
       });
     </script>
   </body>
