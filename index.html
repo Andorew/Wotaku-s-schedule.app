@@ -24,95 +24,94 @@
     <div id="results"></div>
 
     <script>
-      document.getElementById('search-btn').addEventListener('click', () => {
+      <!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ヲタクの本気管理アプリ - 楽天リベンジ版</title>
+</head>
+<body>
+    <h1>書籍検索テスト (楽天ブックス最強版)</h1>
+    <input type="text" id="keyword" placeholder="鬼滅の刃、ONE PIECEなど">
+    <button id="search-btn">検索する</button>
+
+    <div id="status" style="margin: 10px 0; padding: 10px; background: #eee; border-left: 5px solid #bf0000;">
+        ここに通信状態が表示されます。
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        document.getElementById('search-btn').addEventListener('click', () => {
             const keyword = document.getElementById('keyword').value;
             const statusDiv = document.getElementById('status');
             const resultsDiv = document.getElementById('results');
             
             if (!keyword) return alert('キーワードを入力してください');
 
-            statusDiv.innerText = '日本の単行本だけを厳選中（海外翻訳版をブロック）...';
+            statusDiv.innerText = '楽天ブックスの日本のコミックデータのみを厳選して取得中...';
             resultsDiv.innerHTML = '';
 
-            // 【重要】ご自身のAPIキーを入れてください
-            const apiKey = 'AIzaSyAs_2Ny296ofJ5GHFfjuApgHtgo7fV0wYw'; 
+            // ==========================================
+            // ⚠️ あなたの楽天の情報をここに正確に貼り付けます
+            // ==========================================
+            const appId = 'cc9bd69b-720f-46a4-8820-b3e27c9b26c7'; 
+            const accessKey = 'MvWraoxmEPfz7byKhIa8lvvYgzkwwRLJq'; 
 
-            // タイトルにキーワードが含まれ、フィクション（物語・マンガ）であるもの
-            const advancedQuery = `intitle:${keyword} subject:Fiction`;
+            // 💡 楽天ブックスAPI（BooksBook/Search）の最大の強み：
+            // 最初から「日本の本」しかなく、さらに「&booksGenreId=001001」を指定することで、
+            // 雑誌や小説、歴史本、洋書を【完全にゼロ】にして「少年・青年・少女コミックス単行本」だけに100%固定できます！
+            const rakutenUrl = `https://app.rakuten.co.jp/services/api/BooksBook/Search/20170404?format=json&title=${encodeURIComponent(keyword)}&booksGenreId=001001&hits=30`;
 
-            // 💡 &startIndex=0 を追加して、Google側が勝手に件数をケチるバグを抑制
-            const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(advancedQuery)}&langRestrict=ja&maxResults=40&startIndex=0&orderBy=relevance&key=${apiKey}`;
+            // 💡 前回エラーになったCORSを、超安定しているAllOriginsプロキシ経由で完全にすり抜けます
+            const url = `https://api.allorigins.win/get?url=${encodeURIComponent(rakutenUrl)}`;
 
             fetch(url)
             .then(response => {
-                if (!response.ok) {
-                    return response.json().then(errData => {
-                        throw new Error(`Googleエラー: ${errData.error.message || response.statusText}`);
-                    });
-                }
-                return response.json();
+                if (response.ok) return response.json();
+                throw new Error('ネットワークエラーが発生しました');
             })
-            .then(data => {
-                if (!data.items || data.items.length === 0) {
-                    statusDiv.innerText = '通信成功：日本の単行本が見つかりませんでした。';
+            .then(wrapper => {
+                // 中継サーバーから届いた本物のデータをパースします
+                const data = JSON.parse(wrapper.contents);
+
+                if (data.error) {
+                    throw new Error(`楽天エラー: ${data.error_description || data.error}`);
+                }
+
+                if (!data.Items || data.Items.length === 0) {
+                    statusDiv.innerText = '通信成功：日本のコミックスが見つかりませんでした。';
                     return;
                 }
 
-                let displayCount = 0;
+                statusDiv.innerText = `大成功！ 楽天から純粋なコミックス単行本を ${data.Items.length} 件取得しました！`;
 
-                data.items.forEach(item => {
-                    const volumeInfo = item.volumeInfo;
-                    const saleInfo = item.saleInfo || {};
-                    const title = volumeInfo.title || "";
-                    
-                    // 💡 【超強力フィルター1：雑誌やまとめ本の除外】
-                    if (title.includes("雑誌") || title.includes("マガジン") || title.includes("ジャンプ") || title.includes("合本")) {
-                        return; 
-                    }
+                data.Items.forEach(item => {
+                    const book = item.Item;
 
-                    // 💡 【超強力フィルター2：出版国チェック】
-                    // 出版された国が「JP（日本）」ではない、または価格の通貨が「JPY（日本円）」ではない場合、
-                    // 言語が「ja」になっていても海外の翻訳版なので強制排除します！
-                    const country = saleInfo.country || "";
-                    const currency = (saleInfo.retailPrice && saleInfo.retailPrice.currencyCode) || "";
-                    
-                    // 最低限、国がJPであるか、またはタイトルに日本語（ひらがな・カタカナ・漢字）が1文字でも含まれるかチェック
-                    const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(title);
-                    if (!hasJapanese && country !== "JP") {
-                        return; // 完全にアルファベットだけの洋書をスキップ
-                    }
-
-                    // 💡 【画像エラー対策】
-                    // 切断された placeholder サイトを使わず、別の超安定しているデザイン画像に変更しました
-                    let bookImage = 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=130&q=80'; 
-                    if (volumeInfo.imageLinks && volumeInfo.imageLinks.thumbnail) {
-                        bookImage = volumeInfo.imageLinks.thumbnail.replace('http://', 'https://');
-                    }
-                    
-                    const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : '不明';
-                    const publisher = volumeInfo.publisher || '不明';
-
-                    displayCount++;
+                    // 楽天の画像URLを、一番高画質なものに自動変換します
+                    const bookImage = book.largeImageUrl.replace('?_ex=200x200', '?_ex=300x300');
 
                     const bookEl = document.createElement('div');
                     bookEl.style.margin = '20px 0';
                     bookEl.innerHTML = `
-                        <h3>${title}</h3>
-                        <p>著者: ${authors} / 出版社: ${publisher}</p>
-                        <p>発売日: ${volumeInfo.publishedDate || '不明'}</p>
-                        <img src="${bookImage}" alt="表紙" style="box-shadow: 2px 2px 5px rgba(0,0,0,0.2); max-width: 130px;">
+                        <h3>${book.title}</h3>
+                        <p><b>著者:</b> ${book.author} / <b>出版社:</b> ${book.publisher}</p>
+                        <p><b>発売日:</b> ${book.salesDate} / <b>価格:</b> ${book.itemPrice}円</p>
+                        <img src="${bookImage}" alt="表紙" style="box-shadow: 2px 2px 8px rgba(0,0,0,0.3); max-width: 150px; border-radius: 4px;">
                         <hr style="border: 0; border-top: 1px solid #ccc; margin-top: 15px;">
                     `;
                     resultsDiv.appendChild(bookEl);
                 });
-
-                statusDiv.innerText = `成功！ノイズを除去し、日本のコミックス等 ${displayCount} 件を表示しました！`;
             })
             .catch(error => {
                 console.error('エラー詳細:', error);
                 statusDiv.innerHTML = `<span style="color:red; font-weight:bold;">❌ エラー: ${error.message}</span>`;
             });
         });
+    </script>
+</body>
+</html>
     </script>
   </body>
 </html>
