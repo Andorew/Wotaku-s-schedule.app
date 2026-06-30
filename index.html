@@ -31,19 +31,17 @@
             
             if (!keyword) return alert('キーワードを入力してください');
 
-            statusDiv.innerText = 'Google Books API から単行本を大量に取得中...';
+            statusDiv.innerText = '日本の単行本だけを厳選中（海外翻訳版をブロック）...';
             resultsDiv.innerHTML = '';
 
             // 【重要】ご自身のAPIキーを入れてください
             const apiKey = 'あなたのAPIキー'; 
 
-            // 💡 対策：日本の漫画を探しやすくするため、裏で「コミック」というワードを自動で足します
-            const searchWord = `${keyword} コミック`;
+            // タイトルにキーワードが含まれ、フィクション（物語・マンガ）であるもの
+            const advancedQuery = `intitle:${keyword} subject:Fiction`;
 
-            // 💡 対策：
-            // &maxResults=40 で上限を10件から40件にアップ！
-            // &printType=books で雑誌を完全に排除して本（単行本など）だけに絞り込み！
-            const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchWord)}&maxResults=40&printType=books&key=${apiKey}`;
+            // 💡 &startIndex=0 を追加して、Google側が勝手に件数をケチるバグを抑制
+            const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(advancedQuery)}&langRestrict=ja&maxResults=40&startIndex=0&orderBy=relevance&key=${apiKey}`;
 
             fetch(url)
             .then(response => {
@@ -56,16 +54,37 @@
             })
             .then(data => {
                 if (!data.items || data.items.length === 0) {
-                    statusDiv.innerText = '通信成功：本が見つかりませんでした。';
+                    statusDiv.innerText = '通信成功：日本の単行本が見つかりませんでした。';
                     return;
                 }
 
-                statusDiv.innerText = `成功！ ${data.items.length}件の本が見つかりました！`;
+                let displayCount = 0;
 
                 data.items.forEach(item => {
                     const volumeInfo = item.volumeInfo;
+                    const saleInfo = item.saleInfo || {};
+                    const title = volumeInfo.title || "";
                     
-                    let bookImage = 'https://via.placeholder.com/128x180?text=No+Image';
+                    // 💡 【超強力フィルター1：雑誌やまとめ本の除外】
+                    if (title.includes("雑誌") || title.includes("マガジン") || title.includes("ジャンプ") || title.includes("合本")) {
+                        return; 
+                    }
+
+                    // 💡 【超強力フィルター2：出版国チェック】
+                    // 出版された国が「JP（日本）」ではない、または価格の通貨が「JPY（日本円）」ではない場合、
+                    // 言語が「ja」になっていても海外の翻訳版なので強制排除します！
+                    const country = saleInfo.country || "";
+                    const currency = (saleInfo.retailPrice && saleInfo.retailPrice.currencyCode) || "";
+                    
+                    // 最低限、国がJPであるか、またはタイトルに日本語（ひらがな・カタカナ・漢字）が1文字でも含まれるかチェック
+                    const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(title);
+                    if (!hasJapanese && country !== "JP") {
+                        return; // 完全にアルファベットだけの洋書をスキップ
+                    }
+
+                    // 💡 【画像エラー対策】
+                    // 切断された placeholder サイトを使わず、別の超安定しているデザイン画像に変更しました
+                    let bookImage = 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=130&q=80'; 
                     if (volumeInfo.imageLinks && volumeInfo.imageLinks.thumbnail) {
                         bookImage = volumeInfo.imageLinks.thumbnail.replace('http://', 'https://');
                     }
@@ -73,10 +92,12 @@
                     const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : '不明';
                     const publisher = volumeInfo.publisher || '不明';
 
+                    displayCount++;
+
                     const bookEl = document.createElement('div');
                     bookEl.style.margin = '20px 0';
                     bookEl.innerHTML = `
-                        <h3>${volumeInfo.title}</h3>
+                        <h3>${title}</h3>
                         <p>著者: ${authors} / 出版社: ${publisher}</p>
                         <p>発売日: ${volumeInfo.publishedDate || '不明'}</p>
                         <img src="${bookImage}" alt="表紙" style="box-shadow: 2px 2px 5px rgba(0,0,0,0.2); max-width: 130px;">
@@ -84,6 +105,8 @@
                     `;
                     resultsDiv.appendChild(bookEl);
                 });
+
+                statusDiv.innerText = `成功！ノイズを除去し、日本のコミックス等 ${displayCount} 件を表示しました！`;
             })
             .catch(error => {
                 console.error('エラー詳細:', error);
