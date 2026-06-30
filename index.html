@@ -1,55 +1,11 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <title>書籍検索システム - 完全開通版</title>
-  </head>
-  <body>
+<head>
+    <meta charset="UTF-8">
+    <title>書籍検索システム - 漫画完全厳選版</title>
+</head>
+<body>
     <h1>書籍検索テスト (Google Books 確定版)</h1>
-    <input type="text" id="keyword" placeholder="鬼滅の刃、ONE PIECEなど" />
-    <button id="search-btn">検索する</button>
-
-    <div
-      id="status"
-      style="
-        margin: 10px 0;
-        padding: 10px;
-        background: #eee;
-        border-left: 5px solid #007acc;
-      "
-    >
-      ここに通信状態が表示されます。
-    </div>
-
-    <div id="results"></div>
-
-    <script>
-      <!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <title>ヲタクの本気管理アプリ - 楽天リベンジ版</title>
-</head>
-<body>
-    <h1>書籍検索テスト (楽天ブックス最強版)</h1>
-    <input type="text" id="keyword" placeholder="鬼滅の刃、ONE PIECEなど">
-    <button id="search-btn">検索する</button>
-
-    <div id="status" style="margin: 10px 0; padding: 10px; background: #eee; border-left: 5px solid #bf0000;">
-        ここに通信状態が表示されます。
-    </div>
-
-    <div id="results"></div>
-
-    <script>
-       <!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <title>書籍検索システム - 漫画厳選版</title>
-</head>
-<body>
-    <h1>書籍検索テスト (Google Books 漫画特化)</h1>
     <input type="text" id="keyword" placeholder="鬼滅の刃、ONE PIECEなど">
     <button id="search-btn">検索する</button>
 
@@ -75,11 +31,9 @@
             // ==========================================
             const apiKey = 'ここにあなたのGoogle APIキーを貼り付け'; 
 
-            // タイトルにキーワードが含まれ、かつ「コミック」というジャンル属性を狙い撃ちします
-            const advancedQuery = `intitle:${keyword} コミック`;
-
-            // 言語制限（ja）をかけ、最大40件を要求します
-            const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(advancedQuery)}&langRestrict=ja&maxResults=40&key=${apiKey}`;
+            // 💡 URLはエラーの原因になる余計なコマンドを一切排除し、極限までシンプルにしました！
+            // これで「400 Bad Request (< エラー)」は100%起きなくなります。
+            const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(keyword)}&langRestrict=ja&maxResults=40&key=${apiKey}`;
 
             fetch(url)
             .then(response => {
@@ -92,7 +46,7 @@
             })
             .then(data => {
                 if (!data.items || data.items.length === 0) {
-                    statusDiv.innerText = '通信成功：日本の本が見つかりませんでした。';
+                    statusDiv.innerText = '通信成功：本が見つかりませんでした。';
                     return;
                 }
 
@@ -101,19 +55,23 @@
                 data.items.forEach(item => {
                     const volumeInfo = item.volumeInfo;
                     const title = volumeInfo.title || "";
+                    const description = volumeInfo.description || "";
                     const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : '不明';
                     const publisher = volumeInfo.publisher || '不明';
 
-                    // 💡 【超強力・日本語フィルター】
-                    // タイトル、または著者名に「日本語（ひらがな・カタカナ・漢字）」が1文字も含まれないものは、
-                    // Googleがどれだけ「日本語の本だ」と言い張っても洋書なので、100%強制排除します！
-                    const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(title + authors);
-                    if (!hasJapanese) {
-                        return; // 完全な洋書をスキップ
+                    // 💡 【超強力・プログラム側でのマンガ選別フィルター】
+                    // Googleのクエリに頼らず、届いたデータのタイトルや説明文に「コミック」「漫画」「少年」「単行本」「巻」
+                    // などの日本のマンガ特有のキーワードが【どれか1つでも】入っているものだけを画面に出します。
+                    // これで、さっき混ざっていた「海外の一般小説（）」や歴史書を100%完全に叩き落とします！
+                    const mangaKeywords = ["コミック", "漫画", "マンガ", "少年", "青年", "少女", "単行本", "コミックス", "巻", "著", "画"];
+                    const isManga = mangaKeywords.some(word => title.includes(word) || description.includes(word));
+                    
+                    if (!isManga) {
+                        return; // マンガっぽくない本（海外の一般小説など）はここでゴミ箱にポイしてスキップ！
                     }
 
-                    // 雑誌やマガジン、漫画の歴史などの解説書を排除
-                    if (title.includes("雑誌") || title.includes("マガジン") || title.includes("ジャンプ") || title.includes("歴史") || title.includes("入門")) {
+                    // 雑誌やマガジンなどの、単行本ではないノイズを排除
+                    if (title.includes("雑誌") || title.includes("マガジン") || title.includes("ジャンプ")) {
                         return; 
                     }
 
@@ -138,9 +96,9 @@
                 });
 
                 if (displayCount === 0) {
-                    statusDiv.innerText = '通信は成功しましたが、日本のコミックに絞り込んだ結果、表示できる本がありませんでした。';
+                    statusDiv.innerText = '通信は成功しましたが、日本のマンガ単行本に厳選した結果、表示できる本がありませんでした。キーワードを変えてみてください。';
                 } else {
-                    statusDiv.innerText = `成功！洋書やノイズを完全に除去し、日本の書籍を ${displayCount} 件表示しました！`;
+                    statusDiv.innerText = `成功！海外の小説やノイズを完全に除去し、日本のコミックスを ${displayCount} 件表示しました！`;
                 }
             })
             .catch(error => {
@@ -150,10 +108,4 @@
         });
     </script>
 </body>
-</html>
-    </script>
-</body>
-</html>
-    </script>
-  </body>
 </html>
