@@ -1,92 +1,102 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>書籍検索システム - 漫画検索（楽天ブックスAPI / FastAPI経由）</title>
-</head>
-<body>
+  </head>
+  <body>
     <h1>書籍検索テスト（楽天ブックスAPI 2026年新仕様対応）</h1>
-    <input type="text" id="keyword" placeholder="鬼滅の刃、ONE PIECEなど">
+    <input type="text" id="keyword" placeholder="鬼滅の刃、ONE PIECEなど" />
     <button id="search-btn">検索する</button>
 
-    <div id="status" style="margin: 10px 0; padding: 10px; background: #eee; border-left: 5px solid #bf0000;">
-        ここに通信状態が表示されます。
+    <div
+      id="status"
+      style="
+        margin: 10px 0;
+        padding: 10px;
+        background: #eee;
+        border-left: 5px solid #bf0000;
+      "
+    >
+      ここに通信状態が表示されます。
     </div>
 
     <div id="results"></div>
 
     <script>
-        document.getElementById('search-btn').addEventListener('click', () => {
-            const keyword = document.getElementById('keyword').value;
-            const statusDiv = document.getElementById('status');
-            const resultsDiv = document.getElementById('results');
+      document.getElementById("search-btn").addEventListener("click", () => {
+        const keyword = document.getElementById("keyword").value;
+        const statusDiv = document.getElementById("status");
+        const resultsDiv = document.getElementById("results");
 
-            if (!keyword) return alert('キーワードを入力してください');
+        if (!keyword) return alert("キーワードを入力してください");
 
-            statusDiv.innerText = '検索中...';
-            resultsDiv.innerHTML = '';
+        statusDiv.innerText = "検索中...";
+        resultsDiv.innerHTML = "";
 
-            // ここではAPIキーは一切扱わない。
-            // 自前のFastAPIサーバーのエンドポイントだけを叩く。
-            const url = `/api/books/search?q=${encodeURIComponent(keyword)}`;
+        // ここではAPIキーは一切扱わない。
+        // 自前のFastAPIサーバーのエンドポイントだけを叩く。
+        const url = `http://127.0.0.1:8000/books/search?q=${encodeURIComponent(keyword)}`;
+        fetch(url)
+          .then((response) => {
+            if (!response.ok) {
+              return response.json().then((errData) => {
+                throw new Error(
+                  `サーバーエラー: ${errData.detail || response.statusText}`,
+                );
+              });
+            }
+            return response.json();
+          })
+          .then((data) => {
+            // FastAPI側は楽天のレスポンス(formatVersion=2)をそのまま中継している想定
+            if (!data.items || data.items.length === 0) {
+              statusDiv.innerText = "通信成功：本が見つかりませんでした。";
+              return;
+            }
 
-            fetch(url)
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(errData => {
-                        throw new Error(`サーバーエラー: ${errData.detail || response.statusText}`);
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                // FastAPI側は楽天のレスポンス(formatVersion=2)をそのまま中継している想定
-                if (!data.items || data.items.length === 0) {
-                    statusDiv.innerText = '通信成功：本が見つかりませんでした。';
-                    return;
-                }
+            let displayCount = 0;
 
-                let displayCount = 0;
+            data.items.forEach((book) => {
+              // formatVersion=2 なので book.itemName のようにフラットにアクセスできる
+              const title = book.title || "";
+              const author = book.author || "不明";
+              const publisher = book.publisherName || "不明";
+              const salesDate = book.salesDate || "不明";
+              const image = book.largeImageUrl || book.mediumImageUrl || "";
 
-                data.items.forEach(book => {
-                    // formatVersion=2 なので book.itemName のようにフラットにアクセスできる
-                    const title = book.title || '';
-                    const author = book.author || '不明';
-                    const publisher = book.publisherName || '不明';
-                    const salesDate = book.salesDate || '不明';
-                    const image = book.largeImageUrl || book.mediumImageUrl || '';
+              // size=9 が「コミック」区分。漫画に厳選したい場合はここでフィルタする
+              // (フィルタをかけたくない場合はこのifブロックごと削除してください)
+              if (book.size !== undefined && book.size !== 9) {
+                return;
+              }
 
-                    // size=9 が「コミック」区分。漫画に厳選したい場合はここでフィルタする
-                    // (フィルタをかけたくない場合はこのifブロックごと削除してください)
-                    if (book.size !== undefined && book.size !== 9) {
-                        return;
-                    }
+              displayCount++;
 
-                    displayCount++;
-
-                    const bookEl = document.createElement('div');
-                    bookEl.style.margin = '20px 0';
-                    bookEl.innerHTML = `
+              const bookEl = document.createElement("div");
+              bookEl.style.margin = "20px 0";
+              bookEl.innerHTML = `
                         <h3>${title}</h3>
                         <p>著者: ${author} / 出版社: ${publisher}</p>
                         <p>発売日: ${salesDate}</p>
-                        ${image ? `<img src="${image}" alt="表紙" style="box-shadow: 2px 2px 5px rgba(0,0,0,0.2); max-width: 130px;">` : ''}
+                        ${image ? `<img src="${image}" alt="表紙" style="box-shadow: 2px 2px 5px rgba(0,0,0,0.2); max-width: 130px;">` : ""}
                         <hr style="border: 0; border-top: 1px solid #ccc; margin-top: 15px;">
                     `;
-                    resultsDiv.appendChild(bookEl);
-                });
-
-                if (displayCount === 0) {
-                    statusDiv.innerText = '通信は成功しましたが、コミック区分の本が見つかりませんでした。キーワードを変えてみてください。';
-                } else {
-                    statusDiv.innerText = `成功！コミックを ${displayCount} 件表示しました。`;
-                }
-            })
-            .catch(error => {
-                console.error('エラー詳細:', error);
-                statusDiv.innerHTML = `<span style="color:red; font-weight:bold;">❌ エラー: ${error.message}</span>`;
+              resultsDiv.appendChild(bookEl);
             });
-        });
+
+            if (displayCount === 0) {
+              statusDiv.innerText =
+                "通信は成功しましたが、コミック区分の本が見つかりませんでした。キーワードを変えてみてください。";
+            } else {
+              statusDiv.innerText = `成功！コミックを ${displayCount} 件表示しました。`;
+            }
+          })
+          .catch((error) => {
+            console.error("エラー詳細:", error);
+            statusDiv.innerHTML = `<span style="color:red; font-weight:bold;">❌ エラー: ${error.message}</span>`;
+          });
+      });
     </script>
-</body>
+  </body>
 </html>
