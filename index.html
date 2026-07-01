@@ -2,14 +2,14 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>書籍検索システム - 漫画厳選版</title>
+    <title>書籍検索システム - 漫画検索（楽天ブックスAPI / FastAPI経由）</title>
 </head>
 <body>
-    <h1>書籍検索テスト (Google Books 漫画特化)</h1>
+    <h1>書籍検索テスト（楽天ブックスAPI 2026年新仕様対応）</h1>
     <input type="text" id="keyword" placeholder="鬼滅の刃、ONE PIECEなど">
     <button id="search-btn">検索する</button>
 
-    <div id="status" style="margin: 10px 0; padding: 10px; background: #eee; border-left: 5px solid #007acc;">
+    <div id="status" style="margin: 10px 0; padding: 10px; background: #eee; border-left: 5px solid #bf0000;">
         ここに通信状態が表示されます。
     </div>
 
@@ -20,63 +20,46 @@
             const keyword = document.getElementById('keyword').value;
             const statusDiv = document.getElementById('status');
             const resultsDiv = document.getElementById('results');
-            
+
             if (!keyword) return alert('キーワードを入力してください');
 
-            statusDiv.innerText = '日本のコミック書籍を厳選中...';
+            statusDiv.innerText = '検索中...';
             resultsDiv.innerHTML = '';
 
-            // ==========================================
-            // ⚠️ 【重要】ここにあなたのGoogle APIキー（AIzaSy...）を貼り付けてください！
-            // ==========================================
-            const apiKey = 'AIzaSyAs_2Ny296ofJ5GHFfjuApgHtgo7fV0wYw'; 
-
-            // タイトルにキーワードが含まれ、かつ「コミック」というジャンル属性を狙い撃ちします
-            const advancedQuery = `intitle:${keyword} コミック`;
-
-            // 言語制限（ja）をかけ、最大40件を要求します
-            const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(advancedQuery)}&langRestrict=ja&maxResults=40&key=${apiKey}`;
+            // ここではAPIキーは一切扱わない。
+            // 自前のFastAPIサーバーのエンドポイントだけを叩く。
+            const url = `/api/books/search?q=${encodeURIComponent(keyword)}`;
 
             fetch(url)
             .then(response => {
                 if (!response.ok) {
                     return response.json().then(errData => {
-                        throw new Error(`Googleエラー: ${errData.error.message || response.statusText}`);
+                        throw new Error(`サーバーエラー: ${errData.detail || response.statusText}`);
                     });
                 }
                 return response.json();
             })
             .then(data => {
+                // FastAPI側は楽天のレスポンス(formatVersion=2)をそのまま中継している想定
                 if (!data.items || data.items.length === 0) {
-                    statusDiv.innerText = '通信成功：日本の本が見つかりませんでした。';
+                    statusDiv.innerText = '通信成功：本が見つかりませんでした。';
                     return;
                 }
 
                 let displayCount = 0;
 
-                data.items.forEach(item => {
-                    const volumeInfo = item.volumeInfo;
-                    const title = volumeInfo.title || "";
-                    const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : '不明';
-                    const publisher = volumeInfo.publisher || '不明';
+                data.items.forEach(book => {
+                    // formatVersion=2 なので book.itemName のようにフラットにアクセスできる
+                    const title = book.title || '';
+                    const author = book.author || '不明';
+                    const publisher = book.publisherName || '不明';
+                    const salesDate = book.salesDate || '不明';
+                    const image = book.largeImageUrl || book.mediumImageUrl || '';
 
-                    // 💡 【超強力・日本語フィルター】
-                    // タイトル、または著者名に「日本語（ひらがな・カタカナ・漢字）」が1文字も含まれないものは、
-                    // Googleがどれだけ「日本語の本だ」と言い張っても洋書なので、100%強制排除します！
-                    const hasJapanese = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(title + authors);
-                    if (!hasJapanese) {
-                        return; // 完全な洋書をスキップ
-                    }
-
-                    // 雑誌やマガジン、漫画の歴史などの解説書を排除
-                    if (title.includes("雑誌") || title.includes("マガジン") || title.includes("ジャンプ") || title.includes("歴史") || title.includes("入門")) {
-                        return; 
-                    }
-
-                    // 画像の安全な差し替え
-                    let bookImage = 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=130&q=80'; 
-                    if (volumeInfo.imageLinks && volumeInfo.imageLinks.thumbnail) {
-                        bookImage = volumeInfo.imageLinks.thumbnail.replace('http://', 'https://');
+                    // size=9 が「コミック」区分。漫画に厳選したい場合はここでフィルタする
+                    // (フィルタをかけたくない場合はこのifブロックごと削除してください)
+                    if (book.size !== undefined && book.size !== 9) {
+                        return;
                     }
 
                     displayCount++;
@@ -85,18 +68,18 @@
                     bookEl.style.margin = '20px 0';
                     bookEl.innerHTML = `
                         <h3>${title}</h3>
-                        <p>著者: ${authors} / 出版社: ${publisher}</p>
-                        <p>発売日: ${volumeInfo.publishedDate || '不明'}</p>
-                        <img src="${bookImage}" alt="表紙" style="box-shadow: 2px 2px 5px rgba(0,0,0,0.2); max-width: 130px;">
+                        <p>著者: ${author} / 出版社: ${publisher}</p>
+                        <p>発売日: ${salesDate}</p>
+                        ${image ? `<img src="${image}" alt="表紙" style="box-shadow: 2px 2px 5px rgba(0,0,0,0.2); max-width: 130px;">` : ''}
                         <hr style="border: 0; border-top: 1px solid #ccc; margin-top: 15px;">
                     `;
                     resultsDiv.appendChild(bookEl);
                 });
 
                 if (displayCount === 0) {
-                    statusDiv.innerText = '通信は成功しましたが、日本のコミックに絞り込んだ結果、表示できる本がありませんでした。';
+                    statusDiv.innerText = '通信は成功しましたが、コミック区分の本が見つかりませんでした。キーワードを変えてみてください。';
                 } else {
-                    statusDiv.innerText = `成功！洋書やノイズを完全に除去し、日本の書籍を ${displayCount} 件表示しました！`;
+                    statusDiv.innerText = `成功！コミックを ${displayCount} 件表示しました。`;
                 }
             })
             .catch(error => {
