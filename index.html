@@ -40,13 +40,15 @@
     paginationDiv.style.display = "none";
     allComics = [];
 
+    const maxPagesToFetch = 10; // ← 300件(30件×10ページ)を上限にする
+
     let page = 1;
     let totalCount = null;
     let hitsPerPage = 30;
 
     try {
       while (true) {
-        statusDiv.innerText = `取得中... (${page}ページ目)`;
+        statusDiv.innerText = `取得中... (${page} / 最大${maxPagesToFetch}ページ目)`;
 
         const url = `https://rakuten-books-api.onrender.com/books/search?q=${encodeURIComponent(keyword)}&page=${page}`;
         const response = await fetch(url);
@@ -70,13 +72,14 @@
         const comics = data.Items.filter((book) => book.size === "コミック");
         allComics.push(...comics);
 
-        const maxPage = Math.ceil(totalCount / hitsPerPage);
-        if (page >= maxPage) break;
+        const maxPageFromServer = Math.ceil(totalCount / hitsPerPage);
+
+        // サーバー側の最終ページに達したか、上限ページ数に達したら終了
+        if (page >= maxPageFromServer || page >= maxPagesToFetch) break;
 
         page++;
       }
 
-      // 全件そろったところで、巻数順に並び替え
       allComics.sort((a, b) => extractVolume(a.title) - extractVolume(b.title));
 
       if (allComics.length === 0) {
