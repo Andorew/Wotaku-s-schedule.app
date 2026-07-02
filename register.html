@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/css/register.css" />
+    <title>register</title>
+    
+
+  </head>
+  <body>
+    <div id="messageArea"></div>
+    <div class="container">
+      <h1>著書登録</h1>
+      <br />
+      <input type="hidden" id="modify-article-id" name="article_id" />
+      <form id="register-due-form">
+      <div>
+        <label for="register-title">タイトル:</label>
+        <input type="text" id="register-title" name="title" required />
+        <br />
+        <div class="alignv">
+          <label for="register-auther">著者:</label>
+
+          <input type="text" id="register-auther" name="title" required />
+        </div>
+        <br />
+        <label for="register-publisher">出版社:</label>
+        <input id="register-publisher" name="label" required />
+        <br />
+        <label for="register-day">発売日:</label>
+        <input type="date" id="register-day" name="due_date" />
+        <br>
+        <label for="register-imagepath">画像:</label>
+        <input type=file id="register-imagepath" name="imagepath" required />
+        <br />
+       
+        <label for="register-tagcolor">タグの色:</label>
+        <input type="color" id="register-tagcolor">
+<br />
+        <label for="register-memo">メモ:</label>
+        <textarea id="register-memo" name="body" rows="4" required></textarea>
+        
+      </div>
+
+      <button type="submit">登録</button>
+    </div>
+    </form>
+    <script>
+      const API_BASE_URL = "https://rakuten-books-api.onrender.com";
+      const POST_ARTICLES_ENDPOINT = "/register";
+      const POST_URL = `${API_BASE_URL}${POST_ARTICLES_ENDPOINT}`;
+
+      const titleInput = document.getElementById("register-title");
+      const form = document.getElementById("register-due-form");
+      const auther = document.getElementById("register-auther");
+      const publisher = document.getElementById("register-publisher");
+      const imagepath = document.getElementById("register-imagepath");
+      const memo = document.getElementById("register-memo");
+      const publishday = document.getElementById("register-day");
+      const tagcolor =document.getElementById("register-tagcolor");
+      
+
+      window.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.has('title')) {
+        titleInput.value = params.get('title') || '';
+        auther.value = params.get('author') || '';
+        publisher.value = params.get('publisher') || '';
+        publishday.value = params.get('publishday') || '';
+    }
+});
+      const postApi = (url, data) => {
+        return fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`HTTPエラー! ステータス: ${response.status}`);
+            }
+            return response.json();
+          })
+          .catch((error) => {
+            console.error("エラー:", error);
+            messageArea.innerHTML = `<p style="color:red;">データ取得に失敗しました。<br>${error.message}</p>`;
+            throw error; // 例外を再スローする
+          });
+      };
+
+      const handleFormSubmit = async (event) => {
+        // デフォルトの送信をキャンセル
+        event.preventDefault();
+
+        const title = titleInput.value;
+        
+    
+
+        const data = {
+          "title": titleInput.value,
+          "auther":auther.value,
+          "publisher":publisher.value,
+          "imagepath": imagepath.value,
+          "memo":memo.value,
+           "publishday":publishday.value,
+           "tagcolor":tagcolor.value.slice(1)
+        };
+
+        try {
+          const response = await postApi(POST_URL, data);
+          // console.log("予定作成成功:", response); // ログには残す
+          // console.log("top2.html へ遷移します...");
+          // window.location.href = "/top2.html";
+          //後で学ぶ↓
+            // フォームを隠す
+            form.style.display = "none";
+
+          // 成功メッセージを表示
+          messageArea.innerHTML = `
+          <p style="color: green; font-size: 20px;">登録が完了しました！</p>
+          <button id="continueBtn">続けて登録する</button>`;
+
+          // 続けて登録ボタンの動作
+          document.getElementById("continueBtn").addEventListener("click", () => {
+            // フォームを再表示
+            form.style.display = "block";
+
+            // メッセージを消す
+            messageArea.innerHTML = "";
+
+            // 入力欄をリセット
+            form.reset();
+        });
+        } catch (error) {
+          console.error("エラー:", error);
+        }
+      };
+
+      // フォームの送信イベントをリスン ⇒
+      form.addEventListener("submit", handleFormSubmit);
+      </script>
+  </body>
+</html>
