@@ -36,7 +36,7 @@
 
         // ここではAPIキーは一切扱わない。
         // 自前のFastAPIサーバーのエンドポイントだけを叩く。
-        const url = `http://127.0.0.1:8000/books/search?q=${encodeURIComponent(keyword)}`;
+      const url = `https://rakuten-books-api.onrender.com/books/search?q=${encodeURIComponent(keyword)}`;
         fetch(url)
           .then((response) => {
             if (!response.ok) {
