@@ -28,18 +28,23 @@
         <label for="register-publisher">出版社:</label>
         <input id="register-publisher" name="label" required />
         <br />
-        <label for="register-day">発売日:</label>
+        <label for="register-day">
+        <select id="date-type-select">
+        <option value="発売日">発売日</option>
+        <option value="購入日">購入日</option>
+        </select>:
+        </label>
         <input type="date" id="register-day" name="due_date" />
         <br>
         <label for="register-imagepath">画像:</label>
-        <input type=file id="register-imagepath" name="imagepath" required />
+        <input type=file id="register-imagepath" name="imagepath"  />
         <br />
        
         <label for="register-tagcolor">タグの色:</label>
         <input type="color" id="register-tagcolor">
 <br />
         <label for="register-memo">メモ:</label>
-        <textarea id="register-memo" name="body" rows="4" required></textarea>
+        <textarea id="register-memo" name="body" rows="4"></textarea>
         
       </div>
 
@@ -59,17 +64,16 @@
       const memo = document.getElementById("register-memo");
       const publishday = document.getElementById("register-day");
       const tagcolor =document.getElementById("register-tagcolor");
-      
+      const dateTypeSelect = document.getElementById("date-type-select");
 
       window.addEventListener('DOMContentLoaded', () => {
-    const params = new URLSearchParams(window.location.search);
-
-    if (params.has('title')) {
-        titleInput.value = params.get('title') || '';
-        auther.value = params.get('author') || '';
-        publisher.value = params.get('publisher') || '';
-        publishday.value = params.get('publishday') || '';
-    }
+   const params = new URLSearchParams({
+    title: title,
+    author: author,
+    publisher: publisher,
+    publishday: formatDateForInput(salesDate),   // ← 変換した値を渡す
+    imagepath: image,
+});
 });
       const postApi = (url, data) => {
         return fetch(url, {
@@ -107,7 +111,8 @@
           "imagepath": imagepath.value,
           "memo":memo.value,
            "publishday":publishday.value,
-           "tagcolor":tagcolor.value.slice(1)
+           "tagcolor":tagcolor.value.slice(1),
+           "datetype": dateTypeSelect.value, 
         };
 
         try {
