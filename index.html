@@ -22,138 +22,116 @@
 </div>
 
 <script>
-  let allComics = []; // 全ページ分・並び替え済みのコミック一覧
   let currentPage = 1;
-  const pageSize = 30;
+  let currentKeyword = "";
+  let totalPageCount = 1;
 
-  function extractVolume(title) {
-    const match = title.match(/(\d+)(?!.*\d)/);
-    return match ? parseInt(match[1], 10) : -1;
-  }
-
-  async function fetchAllBooks(keyword) {
+  function fetchBooks(keyword, page) {
     const statusDiv = document.getElementById("status");
     const resultsDiv = document.getElementById("results");
     const paginationDiv = document.getElementById("pagination");
 
+    statusDiv.innerText = "検索中...";
     resultsDiv.innerHTML = "";
-    paginationDiv.style.display = "none";
-    allComics = [];
 
-    const maxPagesToFetch = 10; // ← 300件(30件×10ページ)を上限にする
+    const url = `https://rakuten-books-api.onrender.com/books/search?q=${encodeURIComponent(keyword)}&page=${page}`;
 
-    let page = 1;
-    let totalCount = null;
-    let hitsPerPage = 30;
-
-    try {
-      while (true) {
-        statusDiv.innerText = `取得中... (${page} / 最大${maxPagesToFetch}ページ目)`;
-
-        const url = `https://rakuten-books-api.onrender.com/books/search?q=${encodeURIComponent(keyword)}&page=${page}`;
-        const response = await fetch(url);
-
+    fetch(url)
+      .then((response) => {
         if (!response.ok) {
-          const errData = await response.json();
-          throw new Error(
-            `サーバーエラー: ${errData.detail || response.statusText}`,
-          );
+          return response.json().then((errData) => {
+            throw new Error(
+              `サーバーエラー: ${errData.detail || response.statusText}`,
+            );
+          });
+        }
+        return response.json();
+      })
+      .then((data) => {
+        if (!data.Items || data.Items.length === 0) {
+          statusDiv.innerText = "通信成功：本が見つかりませんでした。";
+          paginationDiv.style.display = "none";
+          return;
         }
 
-        const data = await response.json();
-
-        if (totalCount === null) {
-          totalCount = data.count;
-          hitsPerPage = data.hits;
-        }
-
-        if (!data.Items || data.Items.length === 0) break;
-
+        // コミックだけに絞り込む
         const comics = data.Items.filter((book) => book.size === "コミック");
-        allComics.push(...comics);
 
-        const maxPageFromServer = Math.ceil(totalCount / hitsPerPage);
+        // タイトルから巻数(数字)を抜き出すヘルパー関数
+        function extractVolume(title) {
+          const match = title.match(/(\d+)(?!.*\d)/); // タイトル中、最後に出てくる数字を拾う
+          return match ? parseInt(match[1], 10) : -1; // 数字がなければ -1(末尾に回す)
+        }
 
-        // サーバー側の最終ページに達したか、上限ページ数に達したら終了
-        if (page >= maxPageFromServer || page >= maxPagesToFetch) break;
+        // 巻数の昇順で並び替え(1巻→2巻→3巻…の順)
+        comics.sort((a, b) => extractVolume(a.title) - extractVolume(b.title));
 
-        page++;
-      }
+        let displayCount = 0;
 
-      allComics.sort((a, b) => extractVolume(a.title) - extractVolume(b.title));
+        comics.forEach((book) => {
+          const title = book.title || "";
+          const author = book.author || "不明";
+          const publisher = book.publisherName || "不明";
+          const salesDate = book.salesDate || "不明";
+          const image = book.largeImageUrl || book.mediumImageUrl || "";
 
-      if (allComics.length === 0) {
-        statusDiv.innerText =
-          "通信成功：コミック区分の本が見つかりませんでした。";
-        return;
-      }
+          displayCount++;
 
-      currentPage = 1;
-      renderPage();
-    } catch (error) {
-      console.error("エラー詳細:", error);
-      statusDiv.innerHTML = `<span style="color:red; font-weight:bold;">❌ エラー: ${error.message}</span>`;
-    }
-  }
+          const bookEl = document.createElement("div");
+          bookEl.style.margin = "20px 0";
+          bookEl.innerHTML = `
+            <h3>${title}</h3>
+            <p>著者: ${author} / 出版社: ${publisher}</p>
+            <p>発売日: ${salesDate}</p>
+            ${image ? `<img src="${image}" alt="表紙" style="box-shadow: 2px 2px 5px rgba(0,0,0,0.2); max-width: 130px;">` : ""}
+            <hr style="border: 0; border-top: 1px solid #ccc; margin-top: 15px;">
+        `;
 
-  function renderPage() {
-    const statusDiv = document.getElementById("status");
-    const resultsDiv = document.getElementById("results");
-    const paginationDiv = document.getElementById("pagination");
+          resultsDiv.appendChild(bookEl);
+        });
 
-    resultsDiv.innerHTML = "";
+        // (以下、ページ情報の表示処理は変更なし)
+        totalPageCount = Math.ceil(data.count / data.hits);
+        document.getElementById("page-label").innerText =
+          `${page} / ${totalPageCount} ページ`;
+        paginationDiv.style.display = "block";
 
-    const totalPageCount = Math.ceil(allComics.length / pageSize);
-    const start = (currentPage - 1) * pageSize;
-    const pageItems = allComics.slice(start, start + pageSize);
+        document.getElementById("prev-btn").disabled = page <= 1;
+        document.getElementById("next-btn").disabled = page >= totalPageCount;
 
-    pageItems.forEach((book) => {
-      const title = book.title || "";
-      const author = book.author || "不明";
-      const publisher = book.publisherName || "不明";
-      const salesDate = book.salesDate || "不明";
-      const image = book.largeImageUrl || book.mediumImageUrl || "";
-
-      const bookEl = document.createElement("div");
-      bookEl.style.margin = "20px 0";
-      bookEl.innerHTML = `
-                <h3>${title}</h3>
-                <p>著者: ${author} / 出版社: ${publisher}</p>
-                <p>発売日: ${salesDate}</p>
-                ${image ? `<img src="${image}" alt="表紙" style="box-shadow: 2px 2px 5px rgba(0,0,0,0.2); max-width: 130px;">` : ""}
-                <hr style="border: 0; border-top: 1px solid #ccc; margin-top: 15px;">
-            `;
-      resultsDiv.appendChild(bookEl);
-    });
-
-    statusDiv.innerText = `全 ${allComics.length} 件のコミックを巻数順に表示しています。`;
-
-    document.getElementById("page-label").innerText =
-      `${currentPage} / ${totalPageCount} ページ`;
-    document.getElementById("prev-btn").disabled = currentPage <= 1;
-    document.getElementById("next-btn").disabled =
-      currentPage >= totalPageCount;
-    paginationDiv.style.display = "block";
+        if (displayCount === 0) {
+          statusDiv.innerText =
+            "このページにはコミック区分の本がありませんでした。";
+        } else {
+          statusDiv.innerText = `成功！このページで ${displayCount} 件のコミックを表示しました。(全 ${data.count} 件中)`;
+        }
+      })
+      .catch((error) => {
+        console.error("エラー詳細:", error);
+        statusDiv.innerHTML = `<span style="color:red; font-weight:bold;">❌ エラー: ${error.message}</span>`;
+      });
   }
 
   document.getElementById("search-btn").addEventListener("click", () => {
     const keyword = document.getElementById("keyword").value;
     if (!keyword) return alert("キーワードを入力してください");
-    fetchAllBooks(keyword);
+
+    currentKeyword = keyword;
+    currentPage = 1;
+    fetchBooks(currentKeyword, currentPage);
   });
 
   document.getElementById("prev-btn").addEventListener("click", () => {
     if (currentPage > 1) {
       currentPage--;
-      renderPage();
+      fetchBooks(currentKeyword, currentPage);
     }
   });
 
   document.getElementById("next-btn").addEventListener("click", () => {
-    const totalPageCount = Math.ceil(allComics.length / pageSize);
     if (currentPage < totalPageCount) {
       currentPage++;
-      renderPage();
+      fetchBooks(currentKeyword, currentPage);
     }
   });
 </script>
