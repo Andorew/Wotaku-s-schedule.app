@@ -45,6 +45,13 @@
             );
           });
         }
+        function formatDateForInput(rawDate) {
+          // "2026年07月03日" や "2026年07月03日頃" のような文字列から yyyy-MM-dd を取り出す
+          const match = rawDate.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+          if (!match) return "";
+          const [, year, month, day] = match;
+          return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+        }
         return response.json();
       })
       .then((data) => {
