@@ -68,25 +68,31 @@
 
         let displayCount = 0;
 
-        comics.forEach((book) => {
+        pageItems.forEach((book) => {
           const title = book.title || "";
           const author = book.author || "不明";
           const publisher = book.publisherName || "不明";
-          const salesDate = book.salesDate || "不明";
+          const salesDate = book.salesDate || "";
           const image = book.largeImageUrl || book.mediumImageUrl || "";
 
-          displayCount++;
+          // フォームに渡すデータをクエリパラメータにまとめる
+          const params = new URLSearchParams({
+            title: title,
+            author: author,
+            publisher: publisher,
+            publishday: salesDate,
+            imagepath: image,
+          });
 
           const bookEl = document.createElement("div");
           bookEl.style.margin = "20px 0";
           bookEl.innerHTML = `
-            <h3>${title}</h3>
-            <p>著者: ${author} / 出版社: ${publisher}</p>
-            <p>発売日: ${salesDate}</p>
-            ${image ? `<img src="${image}" alt="表紙" style="box-shadow: 2px 2px 5px rgba(0,0,0,0.2); max-width: 130px;">` : ""}
-            <hr style="border: 0; border-top: 1px solid #ccc; margin-top: 15px;">
-        `;
-
+        <a href="register.html?${params.toString()}" style="font-size: 1.2em; font-weight: bold; text-decoration: none; color: #000;">${title}</a>
+        <p>著者: ${author} / 出版社: ${publisher}</p>
+        <p>発売日: ${salesDate}</p>
+        ${image ? `<img src="${image}" alt="表紙" style="box-shadow: 2px 2px 5px rgba(0,0,0,0.2); max-width: 130px;">` : ""}
+        <hr style="border: 0; border-top: 1px solid #ccc; margin-top: 15px;">
+    `;
           resultsDiv.appendChild(bookEl);
         });
 
