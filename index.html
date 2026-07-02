@@ -50,14 +50,14 @@
           })
           .then((data) => {
             // FastAPI側は楽天のレスポンス(formatVersion=2)をそのまま中継している想定
-            if (!data.items || data.items.length === 0) {
+            if (!data.Items || data.Items.length === 0) {
               statusDiv.innerText = "通信成功：本が見つかりませんでした。";
               return;
             }
 
             let displayCount = 0;
 
-            data.items.forEach((book) => {
+            data.Items.forEach((book) => {
               // formatVersion=2 なので book.itemName のようにフラットにアクセスできる
               const title = book.title || "";
               const author = book.author || "不明";
