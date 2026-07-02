@@ -57,18 +57,9 @@
         // コミックだけに絞り込む
         const comics = data.Items.filter((book) => book.size === "コミック");
 
-        // タイトルから巻数(数字)を抜き出すヘルパー関数
-        function extractVolume(title) {
-          const match = title.match(/(\d+)(?!.*\d)/); // タイトル中、最後に出てくる数字を拾う
-          return match ? parseInt(match[1], 10) : -1; // 数字がなければ -1(末尾に回す)
-        }
-
-        // 巻数の昇順で並び替え(1巻→2巻→3巻…の順)
-        comics.sort((a, b) => extractVolume(a.title) - extractVolume(b.title));
-
         let displayCount = 0;
 
-        pageItems.forEach((book) => {
+        comics.forEach((book) => {
           const title = book.title || "";
           const author = book.author || "不明";
           const publisher = book.publisherName || "不明";
@@ -84,6 +75,8 @@
             imagepath: image,
           });
 
+          displayCount++;
+
           const bookEl = document.createElement("div");
           bookEl.style.margin = "20px 0";
           bookEl.innerHTML = `
@@ -96,7 +89,7 @@
           resultsDiv.appendChild(bookEl);
         });
 
-        // (以下、ページ情報の表示処理は変更なし)
+        // ページ情報の表示処理
         totalPageCount = Math.ceil(data.count / data.hits);
         document.getElementById("page-label").innerText =
           `${page} / ${totalPageCount} ページ`;
