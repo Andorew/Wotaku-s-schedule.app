@@ -1,0 +1,27 @@
+.alignv {
+  margin: 0, 0, 20, 0;
+}
+#register-due-form {
+  width: 600px; /* フォーム全体の幅 */
+  margin: 0 auto; /* 中央寄せ */
+  padding: 20px; /* 内側の余白 */
+  font-size: 20px; /* ラベルなどの文字サイズ */
+}
+/*みんなデカくなる*/
+#register-due-form input[type="text"],
+#register-due-form input[type="date"],
+#register-publisher,
+#register-due-form input[type="file"],
+#register-due-form textarea {
+  width: 100%;
+  padding: 12px;
+  font-size: 18px;
+  margin-top: 5px;
+  margin-bottom: 15px;
+  box-sizing: border-box;
+}
+#register-due-form button {
+  padding: 12px 20px;
+  font-size: 18px;
+  cursor: pointer;
+}
