@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>著書情報 修正</title>
+    <link rel="stylesheet" href="/css/register.css" />
+    <script type="text/javascript" src="/js/general.js"></script>
+    <script type="text/javascript" src="/js/api.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <h1>著書情報を修正</h1>
+      <br />
+      <div id="message-area"></div>
+
+      <form id="modify-book-form">
+        <input type="hidden" id="modify-book-id" name="bookid" />
+        <div>
+          <label for="modify-title">タイトル:</label>
+          <input type="text" id="modify-title" name="title" required />
+          <br />
+
+          <label for="modify-auther">著者:</label>
+          <input type="text" id="modify-auther" name="auther" required />
+          <br />
+
+          <label for="modify-publisher">出版社:</label>
+          <input type="text" id="modify-publisher" name="publisher" required />
+          <br />
+
+          <label for="modify-day">
+            <select id="modify-datetype-select">
+              <option value="発売日">発売日</option>
+              <option value="購入日">購入日</option></select
+            >:
+          </label>
+          <input type="date" id="modify-day" name="publishday" />
+          <br />
+          <br />
+          <label for="register-price">価格(円):</label>
+          <input
+            type="number"
+            id="register-price"
+            name="price"
+            min="0"
+            required
+          />
+          <br />
+          <label for="modify-imagepath">画像:</label>
+          <input type="file" id="modify-imagepath" name="imagepath" />
+          <br />
+          <label>
+            <input type="checkbox" id="use-tagcolor" />
+            タグに色をつける
+          </label>
+          <!-- <input type="color" id="register-tagcolor" disabled /> -->
+          <label for="modify-tagcolor">タグの色:</label>
+          <input type="color" id="modify-tagcolor" name="tagcolor" />
+          <br />
+
+          <label for="modify-memo">メモ:</label>
+          <textarea id="modify-memo" name="memo" rows="4"></textarea>
+        </div>
+
+        <button type="submit">更新</button>
+      </form>
+
+      <div class="actions">
+        <a href="calendar.html">カレンダー一覧に戻る</a>
+      </div>
+    </div>
+
+    <script>
+      if (!checkLogin()) {
+        location.href = "/index.html";
+      }
+      const API_BASE_URL = "http://localhost:8000";
+      const REGISTER_PATH = "register";
+
+      const form = document.getElementById("modify-book-form");
+      const bookIdInput = document.getElementById("modify-book-id");
+      const titleInput = document.getElementById("modify-title");
+      const autherInput = document.getElementById("modify-auther");
+      const publisherInput = document.getElementById("modify-publisher");
+      const imagepathInput = document.getElementById("modify-imagepath");
+      const memoInput = document.getElementById("modify-memo");
+      const publishdayInput = document.getElementById("modify-day");
+      const tagcolorInput = document.getElementById("modify-tagcolor");
+      const datetypeSelect = document.getElementById("modify-datetype-select");
+      const messageArea = document.getElementById("message-area");
+      const price = document.getElementById("register-price");
+      const urlParams = new URLSearchParams(window.location.search);
+      const bookid = urlParams.get("bookid");
+
+      const useTagcolor = document.getElementById("use-tagcolor");
+
+      useTagcolor.addEventListener("change", () => {
+        tagcolorInput.disabled = !useTagcolor.checked;
+      });
+
+      const moveToCalendar = () => {
+        setTimeout(() => {
+          window.location.href = "calendar.html";
+        }, 1000);
+      };
+
+      async function fetchBookDetail(bookid) {
+        const res = await fetch(`${API_BASE_URL}/${REGISTER_PATH}/${bookid}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        if (!res.ok) {
+          throw new Error(
+            `本の情報の取得に失敗しました。ステータス: ${res.status}`,
+          );
+        }
+        return res.json();
+      }
+
+      if (!bookid) {
+        console.error("本のIDが指定されていません。");
+        messageArea.innerHTML = `<p style="color:red;">本のIDが指定されていません。</p>`;
+        moveToCalendar();
+      } else {
+        bookIdInput.value = bookid;
+
+        fetchBookDetail(bookid)
+          .then((book) => {
+            titleInput.value = book.title || "";
+            autherInput.value = book.auther || "";
+            publisherInput.value = book.publisher || "";
+            memoInput.value = book.memo || "";
+            price.value = book.price || "";
+            publishdayInput.value = book.publishday || "";
+            if (book.tagcolor) {
+              tagcolorInput.value = "#" + book.tagcolor;
+            }
+            if (book.datetype) {
+              datetypeSelect.value = book.datetype;
+            }
+          })
+          .catch((error) => {
+            console.error("本の情報取得エラー:", error.message);
+            messageArea.innerHTML = `<p style="color:red;">本の情報の取得に失敗しました。</p>`;
+            moveToCalendar();
+          });
+      }
+
+      const putApi = (url, data) => {
+        return fetch(url, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify(data),
+        })
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`HTTPエラー! ステータス: ${response.status}`);
+            }
+            return response.json();
+          })
+          .catch((error) => {
+            console.error("エラー:", error);
+            messageArea.innerHTML = `<p style="color:red;">更新に失敗しました。<br>${error.message}</p>`;
+            throw error;
+          });
+      };
+
+      const handleFormSubmit = async (event) => {
+        event.preventDefault();
+
+        if (!bookid) {
+          console.error("フォーム送信試行エラー: 本のIDがありません。");
+          messageArea.innerHTML = `<p style="color:red;">本のIDが不明なため更新できません。</p>`;
+          return;
+        }
+
+        const MODIFY_URL = `${API_BASE_URL}/${REGISTER_PATH}/${bookid}`;
+
+        const data = {
+          title: titleInput.value,
+          auther: autherInput.value,
+          publisher: publisherInput.value,
+          price: Number(price.value) || 0,
+          imagepath: imagepathInput.value,
+          memo: memoInput.value,
+          publishday: publishdayInput.value,
+          datetype: datetypeSelect.value,
+          tagcolor: useTagcolor.checked ? tagcolorInput.value.slice(1) : "",
+        };
+
+        try {
+          const response = await putApi(MODIFY_URL, data);
+          console.log("更新成功:", response);
+          messageArea.innerHTML = `<p style="color:green;">更新が完了しました！</p>`;
+          moveToCalendar();
+        } catch (error) {
+          console.error("フォーム送信エラー(更新失敗):", error.message);
+        }
+      };
+
+      form.addEventListener("submit", handleFormSubmit);
+    </script>
+  </body>
+</html>

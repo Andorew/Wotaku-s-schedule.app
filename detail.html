@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script type="text/javascript" src="/js/general.js"></script>
+    <script type="text/javascript" src="/js/api.js"></script>
+    <title>Detail</title>
+  </head>
+
+  <body>
+    <h1 id="title"></h1>
+    <p id="publisher"></p>
+    <p id="auther"></p>
+    <p id="day"></p>
+    <p id="memo"></p>
+    <button id="edit">修正する</button>
+    <button id="delete">削除する</button>
+    <!-- ★★★ script は必ず body の中に置く ★★★ -->
+    <script>
+      if (!checkLogin()) {
+        location.href = "/index.html";
+      }
+      const params = new URLSearchParams(window.location.search);
+      const bookid = params.get("bookid");
+      //const API_BASE_URL = "http://localhost:8000";
+      // const ENDPOINT = "/register";
+      //const READ_URL = `${API_BASE_URL}${ENDPOINT}`;
+      async function fetchBookDetail(bookid) {
+        const res = await fetch(`http://localhost:8000/register/${bookid}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        const data = await res.json();
+        return data;
+      }
+
+      async function loadDetail() {
+        const book = await fetchBookDetail(bookid);
+
+        document.getElementById("title").textContent = book.title;
+        document.getElementById("publisher").textContent = book.publisher;
+        document.getElementById("day").textContent = book.publishday;
+        document.getElementById("memo").textContent = book.memo;
+        document.getElementById("auther").textContent = book.auther;
+      }
+      document.getElementById("edit").addEventListener("click", () => {
+        window.location.href = `/modify.html?bookid=${bookid}`;
+      });
+      document.getElementById("delete").addEventListener("click", () => {
+        window.location.href = `/delete.html?bookid=${bookid}`;
+      });
+
+      loadDetail();
+    </script>
+  </body>
+</html>
