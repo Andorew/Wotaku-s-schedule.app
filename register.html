@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/css/register.css" />
+    <script type="text/javascript" src="/js/general.js"></script>
+    <script type="text/javascript" src="/js/api.js"></script>
     <title>register</title>
     
 
@@ -36,10 +38,17 @@
         </label>
         <input type="date" id="register-day" name="due_date" />
         <br>
+        <label for="register-price">価格(円):</label>
+<input type="number" id="register-price" name="price" min="0" required />
+<br />
         <label for="register-imagepath">画像:</label>
         <input type=file id="register-imagepath" name="imagepath"  />
         <br />
-       
+       <label>
+  <input type="checkbox" id="use-tagcolor" />
+  タグに色をつける
+</label>
+<!-- <input type="color" id="register-tagcolor" disabled /> -->
         <label for="register-tagcolor">タグの色:</label>
         <input type="color" id="register-tagcolor">
 <br />
@@ -51,104 +60,113 @@
       <button type="submit">登録</button>
     </div>
     </form>
-    <script>
-      const API_BASE_URL = "https://rakuten-books-api.onrender.com";
-      const POST_ARTICLES_ENDPOINT = "/register";
-      const POST_URL = `${API_BASE_URL}${POST_ARTICLES_ENDPOINT}`;
+  <script>
+    if (!checkLogin()) {
+  location.href = "/index.html";
+}
+  const API_BASE_URL = "http://localhost:8000";
+  const POST_ARTICLES_ENDPOINT = "/register";
+  const POST_URL = `${API_BASE_URL}${POST_ARTICLES_ENDPOINT}`;
 
-      const titleInput = document.getElementById("register-title");
-      const form = document.getElementById("register-due-form");
-      const auther = document.getElementById("register-auther");
-      const publisher = document.getElementById("register-publisher");
-      const imagepath = document.getElementById("register-imagepath");
-      const memo = document.getElementById("register-memo");
-      const publishday = document.getElementById("register-day");
-      const tagcolor =document.getElementById("register-tagcolor");
-      const dateTypeSelect = document.getElementById("date-type-select");
+  const titleInput = document.getElementById("register-title");
+  const form = document.getElementById("register-due-form");
+  const auther = document.getElementById("register-auther");
+  const publisher = document.getElementById("register-publisher");
+  const imagepath = document.getElementById("register-imagepath");
+  const memo = document.getElementById("register-memo");
+  const publishday = document.getElementById("register-day");
+  const tagcolor = document.getElementById("register-tagcolor");
+  const dateTypeSelect = document.getElementById("date-type-select");
+const useTagcolor = document.getElementById("use-tagcolor");
+const tagcolorInput = document.getElementById("register-tagcolor");
+const price = document.getElementById("register-price");
 
-     window.addEventListener('DOMContentLoaded', () => {
+useTagcolor.addEventListener("change", () => {
+  tagcolorInput.disabled = !useTagcolor.checked;
+});
+  window.addEventListener('DOMContentLoaded', () => {
     const params = new URLSearchParams(window.location.search);
 
     if (params.has('title')) {
-        titleInput.value = params.get('title') || '';
-        auther.value = params.get('author') || '';
-        publisher.value = params.get('publisher') || '';
-        publishday.value = params.get('publishday') || '';
+      titleInput.value = params.get('title') || '';
+      auther.value = params.get('author') || '';
+      publisher.value = params.get('publisher') || '';
+      publishday.value = params.get('publishday') || '';
+       price.value = params.get('itemPrice') || '';
     }
-});
+  });
 
-      const postApi = (url, data) => {
-        return fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        })
-          .then((response) => {
-            if (!response.ok) {
-              throw new Error(`HTTPエラー! ステータス: ${response.status}`);
-            }
-            return response.json();
-          })
-          .catch((error) => {
-            console.error("エラー:", error);
-            messageArea.innerHTML = `<p style="color:red;">データ取得に失敗しました。<br>${error.message}</p>`;
-            throw error; // 例外を再スローする
-          });
-      };
-
-      const handleFormSubmit = async (event) => {
-        // デフォルトの送信をキャンセル
-        event.preventDefault();
-
-        const title = titleInput.value;
-        
-    
-
-        const data = {
-          "title": titleInput.value,
-          "auther":auther.value,
-          "publisher":publisher.value,
-          "imagepath": imagepath.value,
-          "memo":memo.value,
-           "publishday":publishday.value,
-           "tagcolor":tagcolor.value.slice(1),
-           "datetype": dateTypeSelect.value, 
-        };
-
-        try {
-          const response = await postApi(POST_URL, data);
-          // console.log("予定作成成功:", response); // ログには残す
-          // console.log("top2.html へ遷移します...");
-          // window.location.href = "/top2.html";
-          //後で学ぶ↓
-            // フォームを隠す
-            form.style.display = "none";
-
-          // 成功メッセージを表示
-          messageArea.innerHTML = `
-          <p style="color: green; font-size: 20px;">登録が完了しました！</p>
-          <button id="continueBtn">続けて登録する</button>`;
-
-          // 続けて登録ボタンの動作
-          document.getElementById("continueBtn").addEventListener("click", () => {
-            // フォームを再表示
-            form.style.display = "block";
-
-            // メッセージを消す
-            messageArea.innerHTML = "";
-
-            // 入力欄をリセット
-            form.reset();
-        });
-        } catch (error) {
-          console.error("エラー:", error);
+  const postApi = (url, data) => {
+    return fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+      body: JSON.stringify(data),
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTPエラー! ステータス: ${response.status}`);
         }
-      };
+        return response.json();
+      })
+      .catch((error) => {
+        console.error("エラー:", error);
+        messageArea.innerHTML = `<p style="color:red;">データ取得に失敗しました。<br>${error.message}</p>`;
+        throw error; // 例外を再スローする
+      });
+  };
 
-      // フォームの送信イベントをリスン ⇒
-      form.addEventListener("submit", handleFormSubmit);
-      </script>
+  const handleFormSubmit = async (event) => {
+    // デフォルトの送信をキャンセル
+    event.preventDefault();
+
+    const title = titleInput.value;
+
+   const data = {
+  "title": titleInput.value,
+  "auther": auther.value,
+  "publisher": publisher.value,
+   "price": Number(price.value) || 0,
+  "imagepath": imagepath.value,
+  "memo": memo.value,
+  "publishday": publishday.value,
+  "datetype": dateTypeSelect.value,
+  "tagcolor": useTagcolor.checked ? tagcolorInput.value.slice(1) : "",
+};
+
+    try {
+      const response = await postApi(POST_URL, data);
+
+      // フォームを隠す
+      form.style.display = "none";
+
+      // 成功メッセージを表示
+      messageArea.innerHTML = `
+      <p style="color: green; font-size: 20px;">登録が完了しました！</p>
+      <button id="continueBtn">続けて登録する</button>
+      <button id="toCalendarBtn">カレンダー一覧に戻る</button>`;
+
+      // 続けて登録ボタンの動作
+      document.getElementById("continueBtn").addEventListener("click", () => {
+        form.style.display = "block";
+        messageArea.innerHTML = "";
+        form.reset();
+      });
+
+      // カレンダーに戻るボタンの動作
+      document.getElementById("toCalendarBtn").addEventListener("click", () => {
+        window.location.href = "calendar.html";
+      });
+
+    } catch (error) {
+      console.error("エラー:", error);
+    }
+  };
+
+  // フォームの送信イベントをリスン ⇒
+  form.addEventListener("submit", handleFormSubmit);
+</script>
   </body>
 </html>
