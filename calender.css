@@ -30,3 +30,31 @@ th {
   text-align: center; /* ← タイトルとテーブルを中央揃え */
   margin-bottom: 40px; /* ← 月ごとの間隔を少し広げる */
 }
+#serch-btn {
+  text-align: center;
+
+  width: 10%;
+  height: 80px;
+  font-size: 22px;
+}
+#register-btn {
+  text-align: center;
+
+  width: 10%;
+  height: 80px;
+  font-size: 25px;
+}
+#logout-btn {
+  text-align: center;
+
+  width: 10%;
+  height: 80px;
+  font-size: 22px;
+}
+#calculate-btn {
+  text-align: center;
+
+  width: 10%;
+  height: 80px;
+  font-size: 22px;
+}
